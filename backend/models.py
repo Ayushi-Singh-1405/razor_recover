@@ -62,6 +62,13 @@ class SyntheticEvent(Base):
     ground_truth_recoverable = Column(Boolean, nullable=False, default=False)
     ground_truth_outcome = Column(String, nullable=False, default="not_applicable")
     ground_truth_recovered_amount = Column(Integer, nullable=False, default=0)
+    customer_tenure_days = Column(Integer, nullable=True)
+    previous_failed_payments = Column(Integer, nullable=False, default=0)
+    average_order_value = Column(Integer, nullable=True)
+    time_since_last_successful_payment_hours = Column(Integer, nullable=True)
+    time_since_last_recovery_attempt_hours = Column(Integer, nullable=True)
+    checkout_duration_seconds = Column(Integer, nullable=True)
+    payment_method = Column(String, nullable=True)
 
 
 class DetectionResult(Base):

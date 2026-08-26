@@ -23,11 +23,83 @@ ALLOWED_FAILURE_REASONS = {
     None, "insufficient_funds", "card_declined",
     "network_error", "otp_timeout", "customer_abandoned",
 }
-ALLOWED_OUTCOMES = {"would_recover", "would_not_recover", "not_applicable"}
+ALLOWED_OUTCOMES = {"recovered", "not_recovered", "not_applicable"}
+ALLOWED_PAYMENT_METHODS = ("card", "upi", "netbanking")
+
+TIER_HIGH = "HIGH"
+TIER_MEDIUM = "MEDIUM"
+TIER_LOW = "LOW"
+TIER_NONE = "NONE"
+
+TIER_PROB = {TIER_HIGH: 0.85, TIER_MEDIUM: 0.50, TIER_LOW: 0.15, TIER_NONE: 0.00}
+
+BASELINE_TIERS = {
+    "network_error": TIER_HIGH,
+    "otp_timeout": TIER_HIGH,
+    "insufficient_funds": TIER_MEDIUM,
+    "card_declined": TIER_MEDIUM,
+    "customer_abandoned": TIER_MEDIUM,
+}
 
 
 def _rand_hex(rng: random.Random, n: int) -> str:
     return "".join(rng.choice("0123456789abcdef") for _ in range(n))
+
+
+def _clamp(v: int, lo: int, hi: int) -> int:
+    return max(lo, min(hi, v))
+
+
+def _count_signals_favorable(e: dict) -> int:
+    score = 0
+    if e["previous_successful_payments"] >= 2:
+        score += 1
+    if e["previous_failed_payments"] <= 1:
+        score += 1
+    cd = e["checkout_duration_seconds"]
+    if cd is not None and cd < 150:
+        score += 1
+    if cd is not None and cd < 300:
+        score += 1
+    avg = e["average_order_value"]
+    if avg and avg > 0:
+        ratio = abs(e["amount_paise"] - avg) / avg
+        if ratio <= 0.30:
+            score += 1
+    tsp = e["time_since_last_successful_payment_hours"]
+    if tsp is not None and tsp < 168:
+        score += 1
+    return score
+
+
+def _adjust_tier(base_tier: str, favorable: int, total_signals: int) -> str:
+    tier_order = [TIER_NONE, TIER_LOW, TIER_MEDIUM, TIER_HIGH]
+    idx = tier_order.index(base_tier)
+    ratio = favorable / total_signals if total_signals > 0 else 0.5
+    if ratio >= 0.35:
+        idx = min(idx + 1, 3)
+    elif ratio < 0.10:
+        idx = max(idx - 1, 0)
+    return tier_order[idx]
+
+
+def _compute_engagement_adjustments(e: dict) -> list[str]:
+    notes = []
+    if e["previous_failed_payments"] >= 6:
+        notes.append("repeated_failures")
+    if e["previous_recovery_attempts"] >= 2:
+        tsp = e["time_since_last_recovery_attempt_hours"]
+        if tsp is not None and tsp < 24:
+            notes.append("recent_recovery")
+    if e["customer_tenure_days"] < 7:
+        notes.append("new_customer")
+    cd = e["checkout_duration_seconds"]
+    if cd is not None and cd > 500:
+        notes.append("prolonged_checkout")
+    tsp = e["time_since_last_successful_payment_hours"]
+    if tsp is not None and tsp > 1500:
+        notes.append("long_inactivity")
+    return notes
 
 
 def generate_events(seed: int, count: int) -> list[dict]:
@@ -38,6 +110,8 @@ def generate_events(seed: int, count: int) -> list[dict]:
     repeat_pool_size = max(1, int(count * 0.2))
     repeat_customers = [f"cust_repeat_{i}" for i in range(repeat_pool_size)]
 
+    tier_counts = Counter()
+
     events = []
     for i in range(count):
         roll = rng.random()
@@ -45,41 +119,15 @@ def generate_events(seed: int, count: int) -> list[dict]:
         if roll < 0.35:
             status = "succeeded"
             failure_reason = None
-            gt_recoverable = False
-            gt_outcome = "not_applicable"
-            gt_recovered_amount = 0
-
         elif roll < 0.60:
             status = "failed"
             failure_reason = rng.choice(["network_error", "otp_timeout"])
-            gt_recoverable = True
-            gt_outcome = "would_recover"
-            gt_recovered_amount = 0  # set after amount_paise
-
         elif roll < 0.80:
             status = "failed"
             failure_reason = rng.choice(["insufficient_funds", "card_declined"])
-            if rng.random() < 0.5:
-                gt_recoverable = True
-                gt_outcome = "would_recover"
-                gt_recovered_amount = 0
-            else:
-                gt_recoverable = False
-                gt_outcome = "would_not_recover"
-                gt_recovered_amount = 0
-
         elif roll < 0.95:
             status = "abandoned_checkout"
             failure_reason = "customer_abandoned"
-            if rng.random() < 0.8:
-                gt_recoverable = True
-                gt_outcome = "would_recover"
-                gt_recovered_amount = 0
-            else:
-                gt_recoverable = False
-                gt_outcome = "would_not_recover"
-                gt_recovered_amount = 0
-
         else:
             status = rng.choice(["failed", "abandoned_checkout"])
             failure_reason = (
@@ -87,16 +135,11 @@ def generate_events(seed: int, count: int) -> list[dict]:
                 if status == "failed"
                 else "customer_abandoned"
             )
-            gt_recoverable = False
-            gt_outcome = "would_not_recover"
-            gt_recovered_amount = 0
 
         amount_paise = rng.randint(10000, 2000000)
 
-        if gt_recoverable:
-            gt_recovered_amount = amount_paise
-
-        if rng.random() < 0.2:
+        is_repeat = rng.random() < 0.2
+        if is_repeat:
             customer_ref = rng.choice(repeat_customers)
             previous_successful_payments = rng.randint(1, 10)
             previous_recovery_attempts = rng.randint(0, 2)
@@ -104,6 +147,49 @@ def generate_events(seed: int, count: int) -> list[dict]:
             customer_ref = f"cust_{_rand_hex(rng, 16)}"
             previous_successful_payments = 0
             previous_recovery_attempts = 0
+
+        previous_failed_payments = (
+            rng.randint(0, 2)
+            if previous_successful_payments <= 1
+            else rng.randint(0, previous_successful_payments + 3)
+        )
+
+        if previous_successful_payments >= 5:
+            customer_tenure_days = rng.randint(180, 1200)
+        elif previous_successful_payments >= 2:
+            customer_tenure_days = rng.randint(30, 400)
+        else:
+            customer_tenure_days = rng.randint(0, 60)
+
+        if previous_successful_payments >= 5:
+            average_order_value = rng.randint(20000, 800000)
+        elif previous_successful_payments >= 2:
+            average_order_value = rng.randint(15000, 500000)
+        else:
+            average_order_value = rng.randint(10000, 300000)
+
+        if previous_successful_payments >= 5:
+            time_since_last_successful_payment_hours = rng.randint(1, 200)
+        elif previous_successful_payments >= 2:
+            time_since_last_successful_payment_hours = rng.randint(24, 500)
+        elif previous_successful_payments == 1:
+            time_since_last_successful_payment_hours = rng.randint(72, 1500)
+        else:
+            time_since_last_successful_payment_hours = None
+
+        if previous_recovery_attempts >= 1:
+            time_since_last_recovery_attempt_hours = rng.randint(1, 168)
+        else:
+            time_since_last_recovery_attempt_hours = None
+
+        if status == "succeeded":
+            checkout_duration_seconds = rng.randint(30, 180)
+        elif status == "abandoned_checkout":
+            checkout_duration_seconds = rng.randint(60, 600)
+        else:
+            checkout_duration_seconds = rng.randint(20, 400)
+
+        payment_method = rng.choice(ALLOWED_PAYMENT_METHODS)
 
         created_at = base_time - timedelta(
             seconds=rng.randint(0, 30 * 24 * 60 * 60)
@@ -117,10 +203,15 @@ def generate_events(seed: int, count: int) -> list[dict]:
             "previous_successful_payments": previous_successful_payments,
             "previous_recovery_attempts": previous_recovery_attempts,
             "created_at": created_at,
-            "ground_truth_recoverable": gt_recoverable,
-            "ground_truth_outcome": gt_outcome,
-            "ground_truth_recovered_amount": gt_recovered_amount,
+            "customer_tenure_days": customer_tenure_days,
+            "previous_failed_payments": previous_failed_payments,
+            "average_order_value": average_order_value,
+            "time_since_last_successful_payment_hours": time_since_last_successful_payment_hours,
+            "time_since_last_recovery_attempt_hours": time_since_last_recovery_attempt_hours,
+            "checkout_duration_seconds": checkout_duration_seconds,
+            "payment_method": payment_method,
         }
+
         event["raw_payload"] = {
             "event": f"payment.{status}" if status != "succeeded" else "payment.captured",
             "payload": {
@@ -136,13 +227,45 @@ def generate_events(seed: int, count: int) -> list[dict]:
         }
         events.append(event)
 
-    exhausted_count = max(1, int(count * 0.05))
-    exhausted_indices = rng.sample(range(count), exhausted_count)
-    for idx in exhausted_indices:
-        events[idx]["previous_recovery_attempts"] = rng.randint(3, 5)
-        events[idx]["ground_truth_recoverable"] = False
-        events[idx]["ground_truth_outcome"] = "would_not_recover"
-        events[idx]["ground_truth_recovered_amount"] = 0
+    for e in events:
+        if e["status"] == "succeeded":
+            tier = TIER_NONE
+        elif e["previous_recovery_attempts"] >= 3:
+            tier = TIER_NONE
+        else:
+            base_tier = BASELINE_TIERS.get(e["failure_reason"], TIER_MEDIUM)
+            favorable = _count_signals_favorable(e)
+            total = 6
+            tier = _adjust_tier(base_tier, favorable, total)
+            negative = _compute_engagement_adjustments(e)
+            tier_order = [TIER_NONE, TIER_LOW, TIER_MEDIUM, TIER_HIGH]
+            idx = tier_order.index(tier)
+            if len(negative) >= 4:
+                idx = max(idx - 1, 0)
+            elif len(negative) >= 3 and idx == 3:
+                idx = 2
+            tier = tier_order[idx]
+
+        tier_counts[tier] += 1
+        prob = TIER_PROB[tier]
+        e["ground_truth_recoverable"] = rng.random() < prob
+        if e["ground_truth_recoverable"]:
+            e["ground_truth_outcome"] = "recovered"
+            e["ground_truth_recovered_amount"] = e["amount_paise"]
+        else:
+            e["ground_truth_outcome"] = "not_recovered"
+            e["ground_truth_recovered_amount"] = 0
+
+    print("\nRecoverability tier breakdown (before probability draw):")
+    for t in (TIER_HIGH, TIER_MEDIUM, TIER_LOW, TIER_NONE):
+        cnt = tier_counts[t]
+        print(f"  {t:10s} {cnt:5d}  ({cnt / count * 100:.1f}%)")
+
+    gt_true = sum(1 for e in events if e["ground_truth_recoverable"])
+    gt_false = count - gt_true
+    print(f"\nground_truth_recoverable breakdown:")
+    print(f"  True   {gt_true:5d}  ({gt_true / count * 100:.1f}%)")
+    print(f"  False  {gt_false:5d}  ({gt_false / count * 100:.1f}%)")
 
     return events
 
@@ -178,9 +301,35 @@ def validate(events: list[dict], count: int) -> None:
                 f"Event {i}: status='succeeded' but ground_truth_recoverable=true"
             )
 
+        if e["previous_recovery_attempts"] >= 3 and e["ground_truth_recoverable"]:
+            raise ValueError(
+                f"Event {i}: previous_recovery_attempts={e['previous_recovery_attempts']} "
+                f"but ground_truth_recoverable=true"
+            )
+
         if e["ground_truth_outcome"] not in ALLOWED_OUTCOMES:
             raise ValueError(
                 f"Event {i}: invalid ground_truth_outcome '{e['ground_truth_outcome']}'"
+            )
+
+        if e["checkout_duration_seconds"] is None or e["checkout_duration_seconds"] <= 0:
+            raise ValueError(
+                f"Event {i}: checkout_duration_seconds={e['checkout_duration_seconds']} invalid"
+            )
+
+        if e["customer_tenure_days"] is None or e["customer_tenure_days"] < 0:
+            raise ValueError(
+                f"Event {i}: customer_tenure_days={e['customer_tenure_days']} invalid"
+            )
+
+        if e["payment_method"] not in ALLOWED_PAYMENT_METHODS:
+            raise ValueError(
+                f"Event {i}: invalid payment_method '{e['payment_method']}'"
+            )
+
+        if e["previous_failed_payments"] < 0:
+            raise ValueError(
+                f"Event {i}: previous_failed_payments={e['previous_failed_payments']} < 0"
             )
 
         status_counts[e["status"]] += 1
@@ -226,6 +375,13 @@ def insert_events(events: list[dict], expected_count: int) -> None:
                 e["ground_truth_recoverable"],
                 e["ground_truth_outcome"],
                 e["ground_truth_recovered_amount"],
+                e["customer_tenure_days"],
+                e["previous_failed_payments"],
+                e["average_order_value"],
+                e["time_since_last_successful_payment_hours"],
+                e["time_since_last_recovery_attempt_hours"],
+                e["checkout_duration_seconds"],
+                e["payment_method"],
             ))
 
         total_batches = (len(rows) + batch_size - 1) // batch_size
@@ -238,7 +394,11 @@ def insert_events(events: list[dict], expected_count: int) -> None:
                 "(id, amount_paise, status, failure_reason, customer_ref, "
                 "previous_successful_payments, previous_recovery_attempts, "
                 "created_at, raw_payload, ground_truth_recoverable, "
-                "ground_truth_outcome, ground_truth_recovered_amount) "
+                "ground_truth_outcome, ground_truth_recovered_amount, "
+                "customer_tenure_days, previous_failed_payments, "
+                "average_order_value, time_since_last_successful_payment_hours, "
+                "time_since_last_recovery_attempt_hours, "
+                "checkout_duration_seconds, payment_method) "
                 "VALUES %s",
                 batch,
                 page_size=batch_size,
