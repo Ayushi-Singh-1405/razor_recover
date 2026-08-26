@@ -139,14 +139,29 @@ def generate_events(seed: int, count: int) -> list[dict]:
         amount_paise = rng.randint(10000, 2000000)
 
         is_repeat = rng.random() < 0.2
-        if is_repeat:
-            customer_ref = rng.choice(repeat_customers)
-            previous_successful_payments = rng.randint(1, 10)
-            previous_recovery_attempts = rng.randint(0, 2)
+
+        recovery_roll = rng.random()
+        if recovery_roll < 0.005:
+            previous_recovery_attempts = 5
+        elif recovery_roll < 0.02:
+            previous_recovery_attempts = 4
+        elif recovery_roll < 0.05:
+            previous_recovery_attempts = 3
+        elif recovery_roll < 0.15:
+            previous_recovery_attempts = 2
+        elif recovery_roll < 0.25:
+            previous_recovery_attempts = 1
+        else:
+            previous_recovery_attempts = 0
+
+        has_exhausted = previous_recovery_attempts >= 3
+
+        if is_repeat or has_exhausted:
+            customer_ref = rng.choice(repeat_customers) if is_repeat else f"cust_{_rand_hex(rng, 16)}"
+            previous_successful_payments = rng.randint(2, 10)
         else:
             customer_ref = f"cust_{_rand_hex(rng, 16)}"
             previous_successful_payments = 0
-            previous_recovery_attempts = 0
 
         previous_failed_payments = (
             rng.randint(0, 2)
@@ -260,6 +275,15 @@ def generate_events(seed: int, count: int) -> list[dict]:
     for t in (TIER_HIGH, TIER_MEDIUM, TIER_LOW, TIER_NONE):
         cnt = tier_counts[t]
         print(f"  {t:10s} {cnt:5d}  ({cnt / count * 100:.1f}%)")
+
+    recovery_attempts_counts = Counter(e["previous_recovery_attempts"] for e in events)
+    print(f"\nprevious_recovery_attempts breakdown:")
+    for a in sorted(recovery_attempts_counts):
+        cnt = recovery_attempts_counts[a]
+        label = " (EXHAUSTED)" if a >= 3 else ""
+        print(f"  {a}: {cnt:5d}  ({cnt / count * 100:.1f}%){label}")
+    exhausted_total = sum(v for k, v in recovery_attempts_counts.items() if k >= 3)
+    print(f"  >= 3 total: {exhausted_total:5d}  ({exhausted_total / count * 100:.1f}%)")
 
     gt_true = sum(1 for e in events if e["ground_truth_recoverable"])
     gt_false = count - gt_true

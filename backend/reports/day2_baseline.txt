@@ -5,27 +5,27 @@
 Total events evaluated: 1000
 
 --- Confusion Matrix ---
-  True Positives  (TP): 435
-  False Positives (FP): 215
-  True Negatives  (TN): 350
+  True Positives  (TP): 438
+  False Positives (FP): 224
+  True Negatives  (TN): 338
   False Negatives (FN): 0
 
 --- Metrics ---
-  Precision: 0.6692
+  Precision: 0.6616
   Recall:    1.0000
-  F1 Score:  0.8018
+  F1 Score:  0.7964
 
 --- Sanity Check ---
   status=succeeded with at_risk=True: 0 PASS
 
 --- Revenue ---
-  Total revenue:             ₹10,191,526
-  Revenue (at_risk=True):    ₹6,689,897
-  At-risk percentage:        65.6%
+  Total revenue:             ₹9,824,112
+  Revenue (at_risk=True):    ₹6,538,889
+  At-risk percentage:        66.6%
 
 --- Recoverability Tiering (ground_truth_recoverable=True only) ---
-  Total ground-truth recoverable: 435
-  Assigned high/medium:  325  (74.7%)
-  Assigned low/none:     110  (25.3%)
+  Total ground-truth recoverable: 438
+  Assigned high/medium:  317  (72.4%)
+  Assigned low/none:     121  (27.6%)
 
 ==================================================
