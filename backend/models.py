@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from db import Base
@@ -45,3 +45,31 @@ class AuditLog(Base):
     event = Column(String, nullable=False)
     details = Column(JSONB, nullable=True)
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class SyntheticEvent(Base):
+    __tablename__ = "synthetic_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    amount_paise = Column(Integer, nullable=False)
+    status = Column(String, nullable=False)
+    failure_reason = Column(String, nullable=True)
+    customer_ref = Column(String, nullable=False)
+    previous_successful_payments = Column(Integer, nullable=False, default=0)
+    previous_recovery_attempts = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    raw_payload = Column(JSONB, nullable=True)
+    ground_truth_recoverable = Column(Boolean, nullable=False, default=False)
+    ground_truth_outcome = Column(String, nullable=False, default="not_applicable")
+    ground_truth_recovered_amount = Column(Integer, nullable=False, default=0)
+
+
+class DetectionResult(Base):
+    __tablename__ = "detection_results"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    synthetic_event_id = Column(UUID(as_uuid=True), ForeignKey("synthetic_events.id"), nullable=False)
+    at_risk = Column(Boolean, nullable=False, default=False)
+    recoverability = Column(String, nullable=False, default="none")
+    risk_reason = Column(String, nullable=False, default="NOT_AT_RISK")
+    detected_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
