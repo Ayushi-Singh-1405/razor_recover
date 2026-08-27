@@ -891,3 +891,34 @@ For a given event, the generator should:
 3. Apply hard overrides last: `previous_recovery_attempts >= 3` → forces `NONE` (Section 6) regardless of any other signal; `status == "succeeded"` → forces `NONE` (Section 3.6) regardless of any other signal
 4. Convert the final tier to a `ground_truth_recoverable` boolean via the Section 20.1 probability draw
 5. Set `ground_truth_recovered_amount = amount_paise` if recoverable, else `0`, per Section 8
+
+## 20.7 Simulation Success — Explicit Wiring (Closes Section 13)
+
+Section 13 defines success conceptually ("payment succeeds → recovered_amount = transaction amount") but does not state what "succeeds" maps to mechanically. This is the binding rule:
+
+```text
+simulated_intervention_succeeds  :=  synthetic_events.ground_truth_recoverable == True
+recovered_amount (on success)    :=  synthetic_events.ground_truth_recovered_amount
+recovered_amount (on failure)    :=  0
+```
+
+There is no separate randomness at simulation time. `ground_truth_recoverable` was already the product of a seeded probability draw at generation time (20.1) — the simulation does not re-roll. This keeps the benchmark reproducible: the same seed always produces the same simulated outcomes for the same actions.
+
+An event only reaches the simulator at all if an intervention was actually attempted on it (i.e. `at_risk=True` and the system's chosen action is one of the "attempt recovery" actions, not `stop`/`escalate_to_merchant`/no-action). Events where no intervention was attempted are excluded from the success/failure accounting entirely — they are neither a recovery nor a bad intervention.
+
+## 20.8 Intervention Penalty — Concrete Value (Closes Section 14)
+
+Section 14 requires a fixed penalty value, defined before comparison and never tuned afterward. That value is:
+
+```text
+penalty_per_bad_intervention = ₹200 (20000 paise), flat, regardless of transaction amount
+```
+
+Rationale: this models a fixed operational cost (payment-link generation overhead, one unit of customer friction / risk of annoyance) rather than a percentage of transaction value — a ₹200 attempt on a ₹500 transaction and a ₹200 attempt on a ₹50,000 transaction represent roughly the same wasted ops effort, even though the foregone revenue differs. This value is fixed for both the baseline and the AI-gated agent (Section 14's requirement) and must not be changed after either system's results are observed (Section 19).
+
+```text
+net_₹_recovered = (sum of recovered_amount across successful interventions)
+                   − (bad_interventions × 20000 paise)
+```
+
+A "bad intervention" per Section 20.7 is: `at_risk=True`, an attempt-recovery action was taken, and `ground_truth_recoverable=False`.
