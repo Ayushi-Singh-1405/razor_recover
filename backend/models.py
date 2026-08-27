@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Text, Float
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from db import Base
@@ -80,3 +80,19 @@ class DetectionResult(Base):
     recoverability = Column(String, nullable=False, default="none")
     risk_reason = Column(String, nullable=False, default="NOT_AT_RISK")
     detected_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class AgentDecision(Base):
+    __tablename__ = "agent_decisions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    synthetic_event_id = Column(UUID(as_uuid=True), ForeignKey("synthetic_events.id"), nullable=False)
+    diagnosis = Column(String, nullable=False)
+    recovery_probability = Column(Float, nullable=False)
+    recommended_action = Column(String, nullable=False)
+    reason = Column(Text, nullable=False)
+    confidence = Column(Float, nullable=False)
+    decision_path = Column(String, nullable=False)
+    override_reason = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
