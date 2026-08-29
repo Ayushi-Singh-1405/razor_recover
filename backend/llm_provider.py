@@ -1,26 +1,60 @@
 #!/usr/bin/env python3
-"""LLM Provider module for structured decisions using OpenRouter.
+"""LLM Provider module for structured decisions with provider fallback.
 
-Provides get_structured_decision(prompt, schema) which requests and validates
-structured JSON output from OpenRouter's OpenAI-compatible chat completion API.
+Provider chain (in order):
+    1. Puter        (PRIMARY)  - PUTER_AUTH_TOKEN / PUTER_BASE_URL / PUTER_MODEL
+    2. AgentRouter             - AGENTROUTER_API_KEY / AGENTROUTER_BASE_URL / AGENTROUTER_MODEL
+    3. OpenRouter   (FALLBACK) - OPENROUTER_API_KEY / OPENROUTER_BASE_URL / OPENROUTER_MODEL
+
+get_structured_decision(prompt, schema) tries each configured provider in
+order. Every response is validated against the caller's JSON schema
+before being returned; the first valid structured decision wins. If all
+configured providers fail, an LLMProviderError summarizing the failures
+(without secrets) is raised.
+
+Scope note: this module is responsible for obtaining and validating an
+LLM decision only. What the agent/policy layer does when every LLM
+attempt fails (safe gated override, escalation, etc.) is decided in
+run_agent.py and intentionally NOT handled here.
 """
 
 import json
+import logging
 import os
 import re
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-# Default cheap/free model supporting structured JSON.
-# Can be swapped via OPENROUTER_MODEL environment variable without code changes
-# (e.g., 'google/gemini-2.0-flash-001', 'meta-llama/llama-3.3-70b-instruct:free', etc.)
-DEFAULT_MODEL = "google/gemini-2.0-flash-001"
+logger = logging.getLogger(__name__)
+
 REQUEST_TIMEOUT = 30  # seconds
+
+# Puter - OpenAI-compatible endpoint
+PUTER_DEFAULT_BASE_URL = "https://api.puter.com/puterai/openai/v1/"
+PUTER_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
+
+# Primary provider - AgentRouter (OpenAI-compatible endpoint)
+AGENTROUTER_DEFAULT_BASE_URL = "https://co.agentrouter.org/v1"
+AGENTROUTER_DEFAULT_MODEL = "deepseek-v4-flash"
+
+# Fallback provider - OpenRouter (OpenAI-compatible endpoint)
+OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+# Default cheap/free model supporting structured JSON. Used only when
+# OPENROUTER_MODEL is unset (kept for backward compatibility).
+DEFAULT_MODEL = "google/gemini-2.0-flash-001"
+
+COMPLETIONS_PATH = "/chat/completions"
+
+# Human-readable labels used in aggregated error summaries.
+PROVIDER_LABELS = {
+    "puter": "Puter failed",
+    "agentrouter": "AgentRouter failed",
+    "openrouter": "OpenRouter fallback failed",
+}
 
 
 class LLMProviderError(Exception):
@@ -29,7 +63,7 @@ class LLMProviderError(Exception):
 
 
 class LLMAPIError(LLMProviderError):
-    """Raised when the OpenRouter API call fails (network, auth, HTTP errors)."""
+    """Raised when a provider API call fails (network, auth, HTTP errors)."""
     pass
 
 
@@ -131,38 +165,9 @@ def _clean_json_text(text: str) -> str:
     return text
 
 
-def get_structured_decision(prompt: str, schema: Dict[str, Any]) -> Dict[str, Any]:
-    """Request a structured JSON decision from OpenRouter and validate it against schema.
-
-    Args:
-        prompt: The task instruction and context for the LLM.
-        schema: The JSON schema definition that the response must conform to.
-
-    Returns:
-        Validated dictionary matching the schema.
-
-    Raises:
-        LLMAPIError: On missing API key, network failure, timeout, or non-200 response.
-        LLMJSONDecodeError: If response text cannot be parsed as JSON.
-        LLMSchemaValidationError: If parsed JSON violates required keys, types, or enums.
-    """
-    api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
-    if not api_key:
-        raise LLMAPIError(
-            "OPENROUTER_API_KEY environment variable is not set. "
-            "Please set OPENROUTER_API_KEY in your environment or .env file."
-        )
-
-    model = os.getenv("OPENROUTER_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/RecoverAI",
-        "X-Title": "RecoverAI Decision Engine",
-    }
-
-    system_instruction = (
+def _build_system_instruction(schema: Dict[str, Any]) -> str:
+    """Build the system instruction enforcing strict JSON output."""
+    return (
         "You are a structured decision engine for RecoverAI. "
         "You must respond with ONLY a valid JSON object strictly conforming to the following JSON schema:\n"
         f"{json.dumps(schema, indent=2)}\n\n"
@@ -173,30 +178,81 @@ def get_structured_decision(prompt: str, schema: Dict[str, Any]) -> Dict[str, An
         "4. Include all required keys and match all specified types and enums exactly."
     )
 
+
+def _call_provider(
+    provider_name: str,
+    api_key: str,
+    base_url: str,
+    model: str,
+    prompt: str,
+    schema: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Send one structured-decision request to a single OpenAI-compatible provider.
+
+    Performs, in order:
+      1. build the request (system instruction embeds the JSON schema)
+      2. send the request
+      3. extract message.content from the response wrapper
+      4. clean markdown JSON fences
+      5. parse JSON
+      6. validate against the schema
+      7. return the validated dict
+
+    Args:
+        provider_name: Logical provider identifier (e.g. 'agentrouter').
+        api_key: Bearer token for the provider. Never logged.
+        base_url: OpenAI-compatible base URL (e.g. https://co.agentrouter.org/v1).
+        model: Model identifier to request.
+        prompt: The task instruction and context for the LLM.
+        schema: The JSON schema definition that the response must conform to.
+
+    Returns:
+        Validated dictionary matching the schema.
+
+    Raises:
+        LLMAPIError: On network failure, timeout, non-200 response, or
+            unparseable/empty response wrapper.
+        LLMJSONDecodeError: If the model output cannot be parsed as JSON.
+        LLMSchemaValidationError: If the parsed output violates the schema.
+    """
+    url = base_url.rstrip("/") + COMPLETIONS_PATH
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/RecoverAI",
+        "X-Title": "RecoverAI Decision Engine",
+    }
+
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": system_instruction},
+            {"role": "system", "content": _build_system_instruction(schema)},
             {"role": "user", "content": prompt},
         ],
         "temperature": 0.1,
-        # Use json_schema response_format if possible, fallback to json_object
+        # json_object mode + local schema validation: neither provider is
+        # assumed to support arbitrary JSON Schema response formats.
         "response_format": {
             "type": "json_object"
         },
     }
 
+    logger.info("LLM provider=%s model=%s", provider_name, model)
+
     try:
         response = requests.post(
-            OPENROUTER_URL,
+            url,
             headers=headers,
             json=payload,
             timeout=REQUEST_TIMEOUT,
         )
     except requests.exceptions.Timeout as e:
-        raise LLMAPIError(f"OpenRouter API request timed out after {REQUEST_TIMEOUT}s: {e}") from e
+        raise LLMAPIError(
+            f"{provider_name} API request timed out after {REQUEST_TIMEOUT}s: {e}"
+        ) from e
     except requests.exceptions.RequestException as e:
-        raise LLMAPIError(f"OpenRouter API request failed: {e}") from e
+        raise LLMAPIError(f"{provider_name} API request failed: {e}") from e
 
     if response.status_code != 200:
         error_detail = response.text
@@ -207,17 +263,17 @@ def get_structured_decision(prompt: str, schema: Dict[str, Any]) -> Dict[str, An
         except Exception:
             pass
         raise LLMAPIError(
-            f"OpenRouter API returned HTTP {response.status_code} ({model}): {error_detail}"
+            f"{provider_name} API returned HTTP {response.status_code} (model={model}): {error_detail}"
         )
 
     try:
         resp_json = response.json()
     except Exception as e:
-        raise LLMAPIError(f"Failed to parse OpenRouter response wrapper as JSON: {e}") from e
+        raise LLMAPIError(f"Failed to parse {provider_name} response wrapper as JSON: {e}") from e
 
     choices = resp_json.get("choices", [])
     if not choices or not choices[0].get("message", {}).get("content"):
-        raise LLMAPIError(f"OpenRouter returned empty choices in response: {resp_json}")
+        raise LLMAPIError(f"{provider_name} returned empty choices in response: {resp_json}")
 
     raw_content = choices[0]["message"]["content"]
     cleaned_content = _clean_json_text(raw_content)
@@ -226,12 +282,12 @@ def get_structured_decision(prompt: str, schema: Dict[str, Any]) -> Dict[str, An
         parsed_data = json.loads(cleaned_content)
     except json.JSONDecodeError as e:
         raise LLMJSONDecodeError(
-            f"Failed to parse LLM output as JSON: {e}\nRaw content:\n{raw_content}"
+            f"[{provider_name}] Failed to parse LLM output as JSON: {e}\nRaw content:\n{raw_content}"
         ) from e
 
     if not isinstance(parsed_data, dict):
         raise LLMSchemaValidationError(
-            f"Expected JSON object output, got {type(parsed_data).__name__}: {parsed_data}"
+            f"[{provider_name}] Expected JSON object output, got {type(parsed_data).__name__}: {parsed_data}"
         )
 
     validate_response_schema(parsed_data, schema)
@@ -239,7 +295,123 @@ def get_structured_decision(prompt: str, schema: Dict[str, Any]) -> Dict[str, An
     return parsed_data
 
 
+def _get_provider_configs() -> List[Dict[str, str]]:
+    """Build the ordered provider chain from environment configuration.
+
+    Puter is tried first, then AgentRouter, then OpenRouter (FALLBACK).
+    Providers without credentials are skipped (with a logged warning), so
+    no provider's credentials are required merely to use another one.
+    """
+    configs: List[Dict[str, str]] = []
+
+    puter_key = os.getenv("PUTER_AUTH_TOKEN", "").strip()
+    if puter_key:
+        configs.append({
+            "name": "puter",
+            "api_key": puter_key,
+            "base_url": os.getenv("PUTER_BASE_URL", "").strip() or PUTER_DEFAULT_BASE_URL,
+            "model": os.getenv("PUTER_MODEL", "").strip() or PUTER_DEFAULT_MODEL,
+        })
+    else:
+        logger.warning("LLM provider=puter skipped: PUTER_AUTH_TOKEN is not set")
+
+    ar_key = os.getenv("AGENTROUTER_API_KEY", "").strip()
+    if ar_key:
+        configs.append({
+            "name": "agentrouter",
+            "api_key": ar_key,
+            "base_url": os.getenv("AGENTROUTER_BASE_URL", "").strip() or AGENTROUTER_DEFAULT_BASE_URL,
+            "model": os.getenv("AGENTROUTER_MODEL", "").strip() or AGENTROUTER_DEFAULT_MODEL,
+        })
+    else:
+        logger.warning("LLM provider=agentrouter skipped: AGENTROUTER_API_KEY is not set")
+
+    or_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    if or_key:
+        configs.append({
+            "name": "openrouter",
+            "api_key": or_key,
+            "base_url": os.getenv("OPENROUTER_BASE_URL", "").strip() or OPENROUTER_DEFAULT_BASE_URL,
+            "model": os.getenv("OPENROUTER_MODEL", "").strip() or DEFAULT_MODEL,
+        })
+    else:
+        logger.warning("LLM provider=openrouter skipped: OPENROUTER_API_KEY is not set")
+
+    return configs
+
+
+def get_structured_decision(prompt: str, schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Request a structured JSON decision via the provider chain and validate it.
+
+    Tries Puter first, then AgentRouter, with OpenRouter as FALLBACK. The
+    first provider that returns a schema-valid JSON object wins; remaining
+    providers are not called. Schema validation is enforced on every
+    provider's response - invalid JSON or schema violations never pass
+    silently; they trigger fallback (if another provider is configured).
+
+    Args:
+        prompt: The task instruction and context for the LLM.
+        schema: The JSON schema definition that the response must conform to.
+
+    Returns:
+        Validated dictionary matching the schema.
+
+    Raises:
+        LLMAPIError: If no provider is configured, or if the only configured
+            provider fails at the API/transport level (missing key, network
+            failure, timeout, non-200 response).
+        LLMProviderError: If multiple providers are configured and all of
+            them fail; the message summarizes each failure without secrets.
+        LLMJSONDecodeError: If a single configured provider returns
+            unparseable model output (preserved for backward compatibility).
+        LLMSchemaValidationError: If a single configured provider returns
+            schema-violating output (preserved for backward compatibility).
+    """
+    providers = _get_provider_configs()
+    if not providers:
+        raise LLMAPIError(
+            "No LLM provider configured: set AGENTROUTER_API_KEY (primary) "
+            "and/or OPENROUTER_API_KEY (fallback) in your environment or .env file."
+        )
+
+    failures: List[str] = []
+    last_error: Optional[LLMProviderError] = None
+
+    for idx, cfg in enumerate(providers):
+        try:
+            decision = _call_provider(
+                provider_name=cfg["name"],
+                api_key=cfg["api_key"],
+                base_url=cfg["base_url"],
+                model=cfg["model"],
+                prompt=prompt,
+                schema=schema,
+            )
+            logger.info("LLM provider=%s succeeded", cfg["name"])
+            return decision
+        except LLMProviderError as err:
+            last_error = err
+            label = PROVIDER_LABELS.get(cfg["name"], f"{cfg['name']} failed")
+            failures.append(f"{label}: {err}")
+            logger.warning("LLM provider=%s failed: %s", cfg["name"], err)
+            remaining = providers[idx + 1:]
+            if remaining:
+                logger.info("Falling back to %s", remaining[0]["name"])
+
+    if len(failures) == 1:
+        # Single-provider chain: re-raise the original error type/message
+        # so existing callers keep seeing LLMAPIError / LLMJSONDecodeError /
+        # LLMSchemaValidationError exactly as before.
+        raise last_error
+
+    raise LLMProviderError("All LLM providers failed.\n" + "\n".join(failures))
+
+
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     print("--- Testing backend/llm_provider.py ---")
 
     test_schema = {
@@ -267,36 +439,40 @@ if __name__ == "__main__":
         "'The recovery payment link arrived immediately and resolved my checkout issue in seconds!'"
     )
 
-    api_key_set = bool(os.getenv("OPENROUTER_API_KEY", "").strip())
-    model_name = os.getenv("OPENROUTER_MODEL", DEFAULT_MODEL)
-    print(f"Model: {model_name}")
-    print(f"OPENROUTER_API_KEY set: {api_key_set}")
+    ar_set = bool(os.getenv("AGENTROUTER_API_KEY", "").strip())
+    or_set = bool(os.getenv("OPENROUTER_API_KEY", "").strip())
+    puter_set = bool(os.getenv("PUTER_AUTH_TOKEN", "").strip())
+    print(f"Puter configured:       {puter_set} "
+          f"(model={os.getenv('PUTER_MODEL', '').strip() or PUTER_DEFAULT_MODEL})")
+    print(f"AgentRouter configured: {ar_set} "
+          f"(model={os.getenv('AGENTROUTER_MODEL', '').strip() or AGENTROUTER_DEFAULT_MODEL})")
+    print(f"OpenRouter configured:  {or_set} "
+          f"(model={os.getenv('OPENROUTER_MODEL', '').strip() or DEFAULT_MODEL})")
 
-    if not api_key_set:
-        print("\nNote: OPENROUTER_API_KEY is not set.")
-        print("Testing schema validator with synthetic sample...")
-        sample_valid = {
-            "sentiment": "positive",
-            "confidence": 0.98,
-            "reason": "Customer expressed satisfaction with swift recovery link",
-        }
-        validate_response_schema(sample_valid, test_schema)
-        print("Schema validation passed for synthetic sample!")
+    print("\nTesting schema validator with synthetic samples...")
+    sample_valid = {
+        "sentiment": "positive",
+        "confidence": 0.98,
+        "reason": "Customer expressed satisfaction with swift recovery link",
+    }
+    validate_response_schema(sample_valid, test_schema)
+    print("Schema validation passed for synthetic sample!")
 
-        # Verify invalid sample raises exception
-        sample_invalid = {"sentiment": "unknown", "confidence": "high"}
-        try:
-            validate_response_schema(sample_invalid, test_schema)
-            print("ERROR: Invalid sample did not fail validation")
-        except LLMSchemaValidationError as err:
-            print(f"Schema validator correctly rejected invalid sample: {err}")
+    sample_invalid = {"sentiment": "unknown", "confidence": "high"}
+    try:
+        validate_response_schema(sample_invalid, test_schema)
+        print("ERROR: Invalid sample did not fail validation")
+    except LLMSchemaValidationError as err:
+        print(f"Schema validator correctly rejected invalid sample: {err}")
 
-        print("\nTo test live LLM call, set OPENROUTER_API_KEY in .env and rerun.")
+    if not (ar_set or or_set):
+        print("\nNo provider API keys set - offline validation only.")
+        print("Set AGENTROUTER_API_KEY and/or OPENROUTER_API_KEY in .env and rerun for a live test.")
     else:
-        print("\nSending test prompt to OpenRouter...")
+        print("\nSending ONE test prompt through the provider chain (primary -> fallback)...")
         try:
             result = get_structured_decision(test_prompt, test_schema)
-            print("\nLive OpenRouter Result:")
+            print("\nLive Result:")
             print(json.dumps(result, indent=2))
             print("\nSUCCESS: Structured decision received and schema validated.")
         except LLMProviderError as err:
