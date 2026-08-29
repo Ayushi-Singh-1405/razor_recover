@@ -7,9 +7,11 @@ eligible transactions, applies post-filtering safety gates, and records all
 decisions into the agent_decisions table.
 
 Usage:
-    python run_agent.py
+    python run_agent.py               # full run (all at-risk events)
+    python run_agent.py --limit 20    # dry run (first 20 at-risk events only)
 """
 
+import argparse
 import logging
 import sys
 import time
@@ -34,6 +36,20 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run the AI Recovery Decision Agent on at-risk synthetic events."
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Dry run: process only the first N at-risk events. Defaults to all events.",
+    )
+    return parser.parse_args()
 
 BATCH_SIZE = 100
 LLM_CALL_DELAY = 0.5  # seconds between LLM requests to respect rate limits
@@ -204,7 +220,11 @@ def apply_post_filter(llm_res: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def main():
+def main(limit: Optional[int] = None):
+    if limit is not None and limit <= 0:
+        print("Error: --limit must be a positive integer.")
+        sys.exit(2)
+
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
     try:
@@ -242,11 +262,22 @@ def main():
         ]
         
         events = [dict(zip(col_names, row)) for row in events_raw]
+        loaded_count = len(events)
+
+        if limit is not None:
+            events = events[:limit]
+
         total_events = len(events)
+
         print(f"\n==================================================")
         print(f"  RecoverAI — Agent Decision Runner")
         print(f"==================================================")
-        print(f"Loaded {total_events} at-risk events from database.")
+        print(f"Loaded {loaded_count} at-risk events from database.")
+        if limit is not None:
+            print(f"--limit {limit}: dry run — processing first {total_events} of {loaded_count} events.")
+            print(f"NOTE: agent_decisions table will be cleared and repopulated with these {total_events} decisions only.")
+        else:
+            print(f"Full run — processing all {total_events} at-risk events.")
 
         # 2. Clear existing agent_decisions
         cur.execute("DELETE FROM agent_decisions")
@@ -371,4 +402,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    cli_args = parse_args()
+    main(limit=cli_args.limit)
