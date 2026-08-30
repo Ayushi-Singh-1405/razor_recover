@@ -2,9 +2,13 @@
 """LLM Provider module for structured decisions with provider fallback.
 
 Provider chain (in order):
-    1. Puter        (PRIMARY)  - PUTER_AUTH_TOKEN / PUTER_BASE_URL / PUTER_MODEL
-    2. AgentRouter             - AGENTROUTER_API_KEY / AGENTROUTER_BASE_URL / AGENTROUTER_MODEL
-    3. OpenRouter   (FALLBACK) - OPENROUTER_API_KEY / OPENROUTER_BASE_URL / OPENROUTER_MODEL
+    1. OpenRouter - OPENROUTER_API_KEY / OPENROUTER_BASE_URL / OPENROUTER_MODEL
+
+Puter and AgentRouter were previously configured as primary providers but
+have been removed from the chain (dead endpoints: Puter requires a paid
+subscription, AgentRouter rejects the configured key). The chain itself
+stays provider-agnostic: re-enabling a provider is a config-block change
+in _get_provider_configs(), not a code change elsewhere.
 
 get_structured_decision(prompt, schema) tries each configured provider in
 order. Every response is validated against the caller's JSON schema
@@ -33,15 +37,7 @@ logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 30  # seconds
 
-# Puter - OpenAI-compatible endpoint
-PUTER_DEFAULT_BASE_URL = "https://api.puter.com/puterai/openai/v1/"
-PUTER_DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
-
-# Primary provider - AgentRouter (OpenAI-compatible endpoint)
-AGENTROUTER_DEFAULT_BASE_URL = "https://co.agentrouter.org/v1"
-AGENTROUTER_DEFAULT_MODEL = "deepseek-v4-flash"
-
-# Fallback provider - OpenRouter (OpenAI-compatible endpoint)
+# OpenRouter (OpenAI-compatible endpoint)
 OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 # Default cheap/free model supporting structured JSON. Used only when
 # OPENROUTER_MODEL is unset (kept for backward compatibility).
@@ -51,9 +47,7 @@ COMPLETIONS_PATH = "/chat/completions"
 
 # Human-readable labels used in aggregated error summaries.
 PROVIDER_LABELS = {
-    "puter": "Puter failed",
-    "agentrouter": "AgentRouter failed",
-    "openrouter": "OpenRouter fallback failed",
+    "openrouter": "OpenRouter failed",
 }
 
 
@@ -298,33 +292,11 @@ def _call_provider(
 def _get_provider_configs() -> List[Dict[str, str]]:
     """Build the ordered provider chain from environment configuration.
 
-    Puter is tried first, then AgentRouter, then OpenRouter (FALLBACK).
-    Providers without credentials are skipped (with a logged warning), so
-    no provider's credentials are required merely to use another one.
+    Currently OpenRouter only. Puter and AgentRouter were removed as dead
+    endpoints; re-enabling a provider means appending a config block here.
+    Providers without credentials are skipped (with a logged warning).
     """
     configs: List[Dict[str, str]] = []
-
-    puter_key = os.getenv("PUTER_AUTH_TOKEN", "").strip()
-    if puter_key:
-        configs.append({
-            "name": "puter",
-            "api_key": puter_key,
-            "base_url": os.getenv("PUTER_BASE_URL", "").strip() or PUTER_DEFAULT_BASE_URL,
-            "model": os.getenv("PUTER_MODEL", "").strip() or PUTER_DEFAULT_MODEL,
-        })
-    else:
-        logger.warning("LLM provider=puter skipped: PUTER_AUTH_TOKEN is not set")
-
-    ar_key = os.getenv("AGENTROUTER_API_KEY", "").strip()
-    if ar_key:
-        configs.append({
-            "name": "agentrouter",
-            "api_key": ar_key,
-            "base_url": os.getenv("AGENTROUTER_BASE_URL", "").strip() or AGENTROUTER_DEFAULT_BASE_URL,
-            "model": os.getenv("AGENTROUTER_MODEL", "").strip() or AGENTROUTER_DEFAULT_MODEL,
-        })
-    else:
-        logger.warning("LLM provider=agentrouter skipped: AGENTROUTER_API_KEY is not set")
 
     or_key = os.getenv("OPENROUTER_API_KEY", "").strip()
     if or_key:
@@ -343,11 +315,12 @@ def _get_provider_configs() -> List[Dict[str, str]]:
 def get_structured_decision(prompt: str, schema: Dict[str, Any]) -> Dict[str, Any]:
     """Request a structured JSON decision via the provider chain and validate it.
 
-    Tries Puter first, then AgentRouter, with OpenRouter as FALLBACK. The
-    first provider that returns a schema-valid JSON object wins; remaining
-    providers are not called. Schema validation is enforced on every
-    provider's response - invalid JSON or schema violations never pass
-    silently; they trigger fallback (if another provider is configured).
+    Tries each configured provider in order (currently OpenRouter only).
+    The first provider that returns a schema-valid JSON object wins;
+    remaining providers are not called. Schema validation is enforced on
+    every provider's response - invalid JSON or schema violations never
+    pass silently; they trigger fallback (if another provider is
+    configured).
 
     Args:
         prompt: The task instruction and context for the LLM.
@@ -439,13 +412,7 @@ if __name__ == "__main__":
         "'The recovery payment link arrived immediately and resolved my checkout issue in seconds!'"
     )
 
-    ar_set = bool(os.getenv("AGENTROUTER_API_KEY", "").strip())
     or_set = bool(os.getenv("OPENROUTER_API_KEY", "").strip())
-    puter_set = bool(os.getenv("PUTER_AUTH_TOKEN", "").strip())
-    print(f"Puter configured:       {puter_set} "
-          f"(model={os.getenv('PUTER_MODEL', '').strip() or PUTER_DEFAULT_MODEL})")
-    print(f"AgentRouter configured: {ar_set} "
-          f"(model={os.getenv('AGENTROUTER_MODEL', '').strip() or AGENTROUTER_DEFAULT_MODEL})")
     print(f"OpenRouter configured:  {or_set} "
           f"(model={os.getenv('OPENROUTER_MODEL', '').strip() or DEFAULT_MODEL})")
 
