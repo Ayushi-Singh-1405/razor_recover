@@ -596,8 +596,33 @@ Based **only** on technologies present in the repository.
 | AgentRouter integration | 🔵 Planned | Zero code/config in repo (verified by search) |
 | Provider fallback (AgentRouter→OpenRouter) | 🔵 Planned | Only the per-event *safety* fallback (`llm_call_failed` → escalate) exists — a different mechanism (§5.3) |
 | Metrics | 🟡 Partially implemented | Classification + business metrics computed for baseline; decision-path/override/LLM-failure data persisted but not aggregated; uplift/failed-recovery reports PLANNED |
-| Recovery execution (Razorpay link sending from decisions) | 🔵 Planned | `recovery_attempts` table defined but unused; actions recorded, never executed |
+| Recovery execution (Razorpay link sending from decisions) | 🔵 Planned | `execute_recovery.py` implements the policy gates + audit trail and creates real payment links when `LIVE_EXECUTION_ENABLED=true`; execution policy in `EXECUTION_POLICY.md`, config in `execution_config.py` |
+| Google OAuth merchant login | ✅ Implemented | `auth.py` + `merchants` table (migration 006): `/auth/google/login`, `/auth/google/callback`, `/auth/me`, `/auth/logout`; HS256 JWT session in httpOnly `recoverai_session` cookie (24h) via `JWT_SECRET`; `get_current_merchant` dependency returns 401 without a valid session |
 | Frontend / deployment / tracing | ❌ Not present | Empty dirs; no code |
+
+### Protected-route rule (auth dependency pattern)
+
+Every dashboard and escalation-action route built from here on **must** take the
+`get_current_merchant` dependency from `backend/auth.py` so it returns 401
+without a valid session:
+
+```python
+from auth import get_current_merchant
+
+@router.get("/dashboard/summary")
+def dashboard_summary(merchant: Merchant = Depends(get_current_merchant)): ...
+
+@router.post("/dashboard/escalations/{escalation_id}/approve")
+def approve_escalation(escalation_id: str,
+                       merchant: Merchant = Depends(get_current_merchant)): ...
+
+@router.post("/dashboard/escalations/{escalation_id}/dismiss")
+def dismiss_escalation(escalation_id: str,
+                       merchant: Merchant = Depends(get_current_merchant)): ...
+```
+
+Planned protected routes: `GET /dashboard/summary`,
+`POST /dashboard/escalations/{id}/approve`, `POST /dashboard/escalations/{id}/dismiss`.
 
 ---
 
