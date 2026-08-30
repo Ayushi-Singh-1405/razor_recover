@@ -59,7 +59,8 @@ recoverability == "high"
         ↓
 ACTION: create and send a Razorpay recovery payment link
         ↓
-but only if the transaction passes every hard stop in Section 3
+but only if the transaction passes every hard stop in Section 3 and
+the amount escalation check in Section 4
 ```
 
 ACTION is the only tier that may produce a real payment link. Being permitted by tier is necessary but not sufficient — the hard stops always apply.
@@ -92,7 +93,7 @@ STOP — do nothing, do not contact the customer
 
 # 3. Hard STOP Conditions (checked before ANY action, regardless of tier)
 
-These are checked first, for every transaction, even `high` tier. A hard stop can never be overridden by tier, by the AI agent, or by configuration laziness.
+Exactly two conditions are true hard stops. They are checked first, for every transaction, even `high` tier. A hard stop can never be overridden by tier, by the AI agent, or by configuration laziness — and it means "done: no further automated action is ever needed for this transaction."
 
 ## 3.1 Recovery attempts at cap
 
@@ -103,16 +104,7 @@ previous_recovery_attempts >= MAX_ATTEMPTS
 
 Default cap: `MAX_ATTEMPTS = 3`. This matches the detector's `EXHAUSTED_ATTEMPTS` rule and the agent's pre-filter — three independent layers enforce the same limit, which is intentional defense in depth.
 
-## 3.2 Amount above the automated ceiling
-
-```text
-amount_paise > MAX_AUTOMATED_AMOUNT_PAISE
-        → STOP (escalate for human review)
-```
-
-Default ceiling: `MAX_AUTOMATED_AMOUNT_PAISE = 500000` (₹5,000). This is intentionally stricter than the AI agent's ₹18,000 escalation threshold — real money deserves a lower ceiling than benchmark decisions.
-
-## 3.3 Transaction already recovered
+## 3.2 Transaction already recovered
 
 ```text
 transaction status == "recovered"
@@ -123,7 +115,20 @@ If the live webhook path already marked the transaction recovered (the customer 
 
 ---
 
-# 4. Volume Cap on Real Actions
+# 4. Amount Escalation — ESCALATE, not STOP
+
+```text
+amount_paise > MAX_AUTOMATED_AMOUNT_PAISE
+        → ESCALATE to merchant human review
+```
+
+Default ceiling: `MAX_AUTOMATED_AMOUNT_PAISE = 500000` (₹5,000). This is intentionally stricter than the AI agent's ₹18,000 escalation threshold — real money deserves a lower ceiling than benchmark decisions.
+
+An above-ceiling transaction is **not** a hard stop: unlike exhausted attempts or an already-recovered payment, nothing about it is "done." It is a case that needs human judgment. The execution layer therefore records it as `execution_escalated` (reason: `amount_above_cap`), makes no Razorpay call, and moves on — the same ESCALATE semantics as low recoverability (§2.2) and the same labeling used in `demo_scenarios.py`.
+
+---
+
+# 5. Volume Cap on Real Actions
 
 Even permitted ACTIONs are rate-limited:
 
@@ -137,7 +142,7 @@ A bug, a bad deploy, or a misconfigured detector must not be able to blast hundr
 
 ---
 
-# 5. Master Switch: Live Execution
+# 6. Master Switch: Live Execution
 
 ```text
 LIVE_EXECUTION_ENABLED = False   (default)
@@ -149,12 +154,12 @@ With the switch off, the execution layer may compute what it *would* do (and log
 
 ---
 
-# 6. Configuration Reference
+# 7. Configuration Reference
 
 | Constant | Default | Env override | Meaning |
 |---|---|---|---|
 | `MAX_REAL_RECOVERY_ACTIONS` | `10` | `MAX_REAL_RECOVERY_ACTIONS` | Max real payment-link sends per execution run |
-| `MAX_AUTOMATED_AMOUNT_PAISE` | `500000` | `MAX_AUTOMATED_AMOUNT_PAISE` | Transactions above this (₹5,000) are never auto-actioned |
+| `MAX_AUTOMATED_AMOUNT_PAISE` | `500000` | `MAX_AUTOMATED_AMOUNT_PAISE` | Transactions above this (₹5,000) escalate for human review — never auto-actioned, never stopped |
 | `MAX_ATTEMPTS` | `3` | `MAX_ATTEMPTS` | Recovery-attempt cap; at/above this is a hard STOP |
 | `LIVE_EXECUTION_ENABLED` | `False` | `LIVE_EXECUTION_ENABLED` | Master switch; only the exact string `true` enables it |
 
@@ -162,7 +167,7 @@ Defaults are conservative and fixed before any live run. They must not be relaxe
 
 ---
 
-# 7. Relationship to the AI Agent and the Benchmark
+# 8. Relationship to the AI Agent and the Benchmark
 
 - The AI agent (Phase 2) *recommends* actions; the execution policy *decides* what may really execute. The agent cannot authorize a real payment link by recommendation alone — the same principle as the benchmark's policy gate (`AI = reasoning, Policy = authority, Execution = controlled`).
 - In the current benchmark configuration, all agent decisions are recorded to `agent_decisions` and evaluated against synthetic ground truth; nothing executes. This policy governs the future live execution layer, whose implementation must read `execution_config.py` and obey Sections 2–5 exactly.
@@ -170,7 +175,7 @@ Defaults are conservative and fixed before any live run. They must not be relaxe
 
 ---
 
-# 8. Auditability Requirements
+# 9. Auditability Requirements
 
 Every real action (or refused action) taken under this policy must be recorded:
 
@@ -182,7 +187,7 @@ The existing `recovery_attempts` and `audit_logs` tables are the designated audi
 
 ---
 
-# 9. What This Policy Does Not Cover
+# 10. What This Policy Does Not Cover
 
 - **Decision quality** — whether `high`/`low`/`none` are the *right* tiers is the detector's concern (`GROUND_TRUTH_POLICY.md` §10); whether AI recommendations improve outcomes is the Gate B experiment's concern.
 - **Ground truth and simulation** — Sections 20.7/20.8 of the ground truth policy govern benchmark accounting only; execution outcomes in the live path will be real webhook results (`payment_link.paid` / `payment.captured`), not simulations.
@@ -194,8 +199,10 @@ The existing `recovery_attempts` and `audit_logs` tables are the designated audi
 Execution is the only layer that touches real customers. It runs on the most conservative rules, the smallest amount ceiling, the tightest attempt cap, a hard volume limit, and a master switch that is off unless a human explicitly turns it on.
 
 ```text
-tier says maybe  →  hard stops say no  →  nothing happens
-tier says maybe  →  hard stops say ok  →  cap says room  →  switch says on  →  act, and log it
+tier says maybe  →  hard stop says no                        →  nothing happens
+tier says maybe  →  over the amount ceiling                  →  escalate to a human
+tier says maybe  →  stops clear, under ceiling, cap has room,
+                    switch on                                →  act, and log it
 ```
 
 When in doubt, do not execute. Escalate instead.
