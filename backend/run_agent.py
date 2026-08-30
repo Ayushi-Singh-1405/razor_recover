@@ -3,7 +3,8 @@
 
 Reads events flagged as at-risk by the deterministic detector, applies
 pre-filtering policy gates, requests structured decisions from the LLM for
-eligible transactions, applies post-filtering safety gates, and records all
+eligible transactions (with exponential-backoff retries on 429/rate-limit
+errors only), applies post-filtering safety gates, and records all
 decisions into the agent_decisions table.
 
 Usage:
@@ -53,6 +54,13 @@ def parse_args() -> argparse.Namespace:
 
 BATCH_SIZE = 100
 LLM_CALL_DELAY = 0.5  # seconds between LLM requests to respect rate limits
+
+# Rate-limit retry policy: on a 429/rate-limit failure, wait 2s, 4s, 8s
+# (exponential backoff) and retry, up to 3 retries before giving up.
+# Non-429 errors are never retried; they fall through to the existing
+# gated_override / llm_call_failed path immediately.
+MAX_LLM_RETRIES = 3
+BACKOFF_BASE_SECONDS = 2
 
 ALLOWED_ACTIONS = frozenset({
     "recover_now",
@@ -220,6 +228,63 @@ def apply_post_filter(llm_res: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+RATE_LIMIT_MARKERS = ("429", "rate limit", "rate_limit", "ratelimit")
+
+
+def is_rate_limit_error(err: Exception) -> bool:
+    """Check whether an LLM provider error indicates a 429 / rate limit.
+
+    Works for both single-provider LLMAPIError messages and multi-provider
+    LLMProviderError summaries (which embed each provider's failure reason).
+    """
+    message = str(err).lower()
+    return any(marker in message for marker in RATE_LIMIT_MARKERS)
+
+
+def call_llm_with_rate_limit_retry(
+    event_id: str,
+    prompt: str,
+    schema: Dict[str, Any],
+) -> Tuple[Optional[Dict[str, Any]], int, Optional[str]]:
+    """Call get_structured_decision, retrying rate-limit failures with backoff.
+
+    Retry policy:
+      - LLMAPIError indicating a 429 / rate limit: retry up to
+        MAX_LLM_RETRIES times, waiting BACKOFF_BASE_SECONDS * 2**attempt
+        (2s, 4s, 8s) before each retry.
+      - Any other error (auth failures, malformed responses, schema
+        violations, unexpected exceptions): never retried; fails
+        immediately so the caller can apply the gated fallback.
+
+    Returns:
+        (llm_response, retry_count, error_detail) where llm_response is
+        the validated decision dict or None if every attempt failed,
+        retry_count is the number of rate-limit retries performed for
+        this event, and error_detail is the message of the error that
+        caused the final failure (None on success).
+    """
+    retries = 0
+    for attempt in range(MAX_LLM_RETRIES + 1):
+        try:
+            return get_structured_decision(prompt, schema), retries, None
+        except LLMProviderError as exc:
+            if attempt < MAX_LLM_RETRIES and is_rate_limit_error(exc):
+                retries += 1
+                wait_seconds = BACKOFF_BASE_SECONDS * (2 ** attempt)
+                logger.warning(
+                    f"Event {event_id} rate-limited by LLM provider; "
+                    f"retry {retries}/{MAX_LLM_RETRIES} after {wait_seconds}s"
+                )
+                time.sleep(wait_seconds)
+                continue
+            logger.warning(f"Event {event_id} LLM call failed (non-retryable): {exc}")
+            return None, retries, str(exc)
+        except Exception as exc:
+            logger.warning(f"Event {event_id} LLM call failed: {exc}")
+            return None, retries, str(exc)
+    return None, retries, "LLM call failed"
+
+
 def main(limit: Optional[int] = None):
     if limit is not None and limit <= 0:
         print("Error: --limit must be a positive integer.")
@@ -291,6 +356,8 @@ def main(limit: Optional[int] = None):
         gated_override_reasons = Counter()
         ai_decision_count = 0
         final_action_counts = Counter()
+        events_retried = 0
+        total_retry_attempts = 0
 
         db_rows: List[Tuple] = []
 
@@ -310,16 +377,21 @@ def main(limit: Optional[int] = None):
                 if LLM_CALL_DELAY > 0 and llm_called_count > 1:
                     time.sleep(LLM_CALL_DELAY)
 
-                try:
-                    llm_response = get_structured_decision(prompt, DECISION_SCHEMA)
+                llm_response, retry_count, error_detail = call_llm_with_rate_limit_retry(
+                    str(event["id"]), prompt, DECISION_SCHEMA
+                )
+                if retry_count > 0:
+                    events_retried += 1
+                    total_retry_attempts += retry_count
+
+                if llm_response is not None:
                     decision = apply_post_filter(llm_response)
-                except (LLMProviderError, Exception) as exc:
-                    logger.warning(f"Event {event['id']} LLM call failed: {exc}")
+                else:
                     decision = {
                         "diagnosis": "llm_call_failed",
                         "recovery_probability": 0.0,
                         "recommended_action": "escalate_to_merchant",
-                        "reason": f"LLM error: {exc}",
+                        "reason": f"LLM error: {error_detail}",
                         "confidence": 0.0,
                         "decision_path": "gated_override",
                         "override_reason": "llm_call_failed",
@@ -390,6 +462,13 @@ def main(limit: Optional[int] = None):
         print(f"    - Gated Overrides:           {gated_override_count:5d}  ({gated_override_count / total_events * 100:.1f}%)")
         for reason, cnt in sorted(gated_override_reasons.items(), key=lambda x: -x[1]):
             print(f"      * {reason:28s} {cnt:5d}")
+        print(f"")
+        print(f"--- LLM Retry Summary ---")
+        print(f"  Events requiring retry:      {events_retried:5d}")
+        if events_retried > 0:
+            avg_retries = total_retry_attempts / events_retried
+            print(f"  Total retry attempts:        {total_retry_attempts:5d}")
+            print(f"  Average retries:             {avg_retries:.1f} (per retried event)")
         print(f"")
         print(f"--- Final Action Breakdown ---")
         for act, cnt in sorted(final_action_counts.items(), key=lambda x: -x[1]):
