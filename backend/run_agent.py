@@ -6,12 +6,14 @@ pre-filtering policy gates, requests structured decisions from the LLM for
 eligible transactions (with exponential-backoff retries on 429/rate-limit
 errors only), applies post-filtering safety gates, and records all
 decisions into the agent_decisions table (committed incrementally every
-100 decisions, with connection keepalives and reconnect-on-failure so
+25 decisions, with connection keepalives and reconnect-on-failure so
 long runs cannot lose completed work).
 
 Usage:
-    python run_agent.py               # full run (all at-risk events)
-    python run_agent.py --limit 20    # dry run (first 20 at-risk events only)
+    python run_agent.py                          # full run (all at-risk events)
+    python run_agent.py --limit 20               # fresh dry run (first 20, table cleared)
+    python run_agent.py --resume --limit 100     # batched run: process next 100 undecided
+                                                 # events, keeping existing decisions
 """
 
 import argparse
@@ -52,9 +54,16 @@ def parse_args() -> argparse.Namespace:
         metavar="N",
         help="Dry run: process only the first N at-risk events. Defaults to all events.",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Append mode: keep existing agent_decisions and process only "
+             "at-risk events without a decision yet. Combine with --limit "
+             "for batched full-dataset runs.",
+    )
     return parser.parse_args()
 
-BATCH_SIZE = 100
+BATCH_SIZE = 25  # decisions per insert batch / incremental commit
 LLM_CALL_DELAY = 0.5  # seconds between LLM requests to respect rate limits
 
 # Rate-limit retry policy: on a 429/rate-limit failure, wait 2s, 4s, 8s
@@ -324,7 +333,7 @@ def insert_decisions(conn, cur, rows):
     """Insert decision rows in one batch and commit.
 
     If the connection is dead (OperationalError, e.g. a dropped SSL
-    session), reconnect once and retry the same batch - decisions must
+    session), reconnect once and retry the same batch — decisions must
     never be lost to a stale connection. Returns the (possibly new)
     (conn, cur) pair for the caller to continue using.
     """
@@ -347,7 +356,7 @@ def insert_decisions(conn, cur, rows):
         return new_conn, new_cur
 
 
-def main(limit: Optional[int] = None):
+def main(limit: Optional[int] = None, resume: bool = False):
     if limit is not None and limit <= 0:
         print("Error: --limit must be a positive integer.")
         sys.exit(2)
@@ -355,9 +364,14 @@ def main(limit: Optional[int] = None):
     conn = connect_db()
     cur = conn.cursor()
     try:
-        # 1. Read at-risk synthetic events
-        query = """
-            SELECT 
+        # 1. Read at-risk synthetic events (resume mode: only undecided ones)
+        resume_filter = ""
+        if resume:
+            resume_filter = """
+            LEFT JOIN agent_decisions ad ON ad.synthetic_event_id = se.id
+        """
+        query = f"""
+            SELECT
                 se.id,
                 se.amount_paise,
                 se.status,
@@ -375,7 +389,9 @@ def main(limit: Optional[int] = None):
                 se.payment_method
             FROM synthetic_events se
             JOIN detection_results dr ON dr.synthetic_event_id = se.id
+            {resume_filter}
             WHERE dr.at_risk = TRUE
+            {"AND ad.synthetic_event_id IS NULL" if resume else ""}
             ORDER BY se.created_at ASC
         """
         cur.execute(query)
@@ -401,15 +417,24 @@ def main(limit: Optional[int] = None):
         print(f"==================================================")
         print(f"Loaded {loaded_count} at-risk events from database.")
         if limit is not None:
-            print(f"--limit {limit}: dry run — processing first {total_events} of {loaded_count} events.")
-            print(f"NOTE: agent_decisions table will be cleared and repopulated with these {total_events} decisions only.")
+            print(f"--limit {limit}: processing first {total_events} of {loaded_count} events.")
+            if not resume:
+                print(f"NOTE: agent_decisions table will be cleared and repopulated with these {total_events} decisions only.")
         else:
             print(f"Full run — processing all {total_events} at-risk events.")
+        if resume:
+            print(f"Resume mode: existing decisions are preserved; only undecided events are processed.")
 
-        # 2. Clear existing agent_decisions
-        cur.execute("DELETE FROM agent_decisions")
-        conn.commit()
-        print("Cleared existing agent_decisions table.")
+        # 2. Clear existing agent_decisions (fresh runs only)
+        if resume:
+            cur.execute("SELECT count(*) FROM agent_decisions")
+            existing_count = cur.fetchone()[0]
+            print(f"Keeping {existing_count} existing decisions.")
+        else:
+            cur.execute("DELETE FROM agent_decisions")
+            existing_count = 0
+            conn.commit()
+            print("Cleared existing agent_decisions table.")
 
         pre_filtered_count = 0
         pre_filtered_reasons = Counter()
@@ -497,8 +522,10 @@ def main(limit: Optional[int] = None):
 
         cur.execute("SELECT count(*) FROM agent_decisions")
         inserted_count = cur.fetchone()[0]
-        if inserted_count != total_events:
-            raise RuntimeError(f"Row count mismatch: inserted {inserted_count}, expected {total_events}")
+        if inserted_count != existing_count + total_events:
+            raise RuntimeError(
+                f"Row count mismatch: table has {inserted_count}, expected {existing_count} existing + {total_events} new = {existing_count + total_events}"
+            )
 
         # 4. Print Summary
         print(f"\n==================================================")
@@ -541,4 +568,4 @@ def main(limit: Optional[int] = None):
 
 if __name__ == "__main__":
     cli_args = parse_args()
-    main(limit=cli_args.limit)
+    main(limit=cli_args.limit, resume=cli_args.resume)
