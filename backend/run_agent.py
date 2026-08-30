@@ -5,7 +5,9 @@ Reads events flagged as at-risk by the deterministic detector, applies
 pre-filtering policy gates, requests structured decisions from the LLM for
 eligible transactions (with exponential-backoff retries on 429/rate-limit
 errors only), applies post-filtering safety gates, and records all
-decisions into the agent_decisions table.
+decisions into the agent_decisions table (committed incrementally every
+100 decisions, with connection keepalives and reconnect-on-failure so
+long runs cannot lose completed work).
 
 Usage:
     python run_agent.py               # full run (all at-risk events)
@@ -285,12 +287,72 @@ def call_llm_with_rate_limit_retry(
     return None, retries, "LLM call failed"
 
 
+CONNECT_KEEPALIVES = {
+    "keepalives": 1,
+    "keepalives_idle": 30,  # start probing after 30s idle
+    "keepalives_interval": 10,
+    "keepalives_count": 5,
+}
+
+INSERT_QUERY = """
+    INSERT INTO agent_decisions (
+        id,
+        synthetic_event_id,
+        diagnosis,
+        recovery_probability,
+        recommended_action,
+        reason,
+        confidence,
+        decision_path,
+        override_reason
+    ) VALUES %s
+"""
+
+
+def connect_db():
+    """Open a database connection with TCP keepalives.
+
+    Long agent runs keep the connection mostly idle while decisions
+    accumulate; without keepalives, Neon / NAT / firewalls silently drop
+    idle connections and the write phase fails with 'SSL connection has
+    been closed unexpectedly'.
+    """
+    return psycopg2.connect(DATABASE_URL, **CONNECT_KEEPALIVES)
+
+
+def insert_decisions(conn, cur, rows):
+    """Insert decision rows in one batch and commit.
+
+    If the connection is dead (OperationalError, e.g. a dropped SSL
+    session), reconnect once and retry the same batch - decisions must
+    never be lost to a stale connection. Returns the (possibly new)
+    (conn, cur) pair for the caller to continue using.
+    """
+    try:
+        execute_values(cur, INSERT_QUERY, rows, page_size=BATCH_SIZE)
+        conn.commit()
+        return conn, cur
+    except psycopg2.OperationalError as exc:
+        logger.warning(f"Database connection lost during insert ({exc}); reconnecting...")
+        for resource in (cur, conn):
+            try:
+                resource.close()
+            except Exception:
+                pass
+        new_conn = connect_db()
+        new_cur = new_conn.cursor()
+        execute_values(new_cur, INSERT_QUERY, rows, page_size=BATCH_SIZE)
+        new_conn.commit()
+        logger.warning("Reconnected and inserted batch successfully.")
+        return new_conn, new_cur
+
+
 def main(limit: Optional[int] = None):
     if limit is not None and limit <= 0:
         print("Error: --limit must be a positive integer.")
         sys.exit(2)
 
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = connect_db()
     cur = conn.cursor()
     try:
         # 1. Read at-risk synthetic events
@@ -417,30 +479,21 @@ def main(limit: Optional[int] = None):
                 decision["override_reason"],
             ))
 
+            # Incremental durability: commit every BATCH_SIZE decisions so a
+            # crash or connection drop can never lose the whole run.
+            if len(db_rows) >= BATCH_SIZE:
+                conn, cur = insert_decisions(conn, cur, db_rows)
+                db_rows = []
+                print(f"Committed {i}/{total_events} decisions to agent_decisions.")
+
             if i % 50 == 0 or i == total_events:
                 print(f"Processed {i}/{total_events} events...")
 
-        # 3. Batch insert into agent_decisions
-        print(f"\nInserting {len(db_rows)} records into agent_decisions...")
-        insert_query = """
-            INSERT INTO agent_decisions (
-                id,
-                synthetic_event_id,
-                diagnosis,
-                recovery_probability,
-                recommended_action,
-                reason,
-                confidence,
-                decision_path,
-                override_reason
-            ) VALUES %s
-        """
-        total_batches = (len(db_rows) + BATCH_SIZE - 1) // BATCH_SIZE
-        for b_idx in range(0, len(db_rows), BATCH_SIZE):
-            batch = db_rows[b_idx : b_idx + BATCH_SIZE]
-            execute_values(cur, insert_query, batch, page_size=BATCH_SIZE)
-            conn.commit()
-            print(f"Inserted batch {b_idx // BATCH_SIZE + 1}/{total_batches} ({min(b_idx + BATCH_SIZE, len(db_rows))}/{len(db_rows)} rows)")
+        # 3. Flush remaining decisions
+        if db_rows:
+            print(f"\nInserting final {len(db_rows)} records into agent_decisions...")
+            conn, cur = insert_decisions(conn, cur, db_rows)
+            db_rows = []
 
         cur.execute("SELECT count(*) FROM agent_decisions")
         inserted_count = cur.fetchone()[0]
@@ -476,8 +529,14 @@ def main(limit: Optional[int] = None):
         print(f"==================================================")
 
     finally:
-        cur.close()
-        conn.close()
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
