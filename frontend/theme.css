@@ -1,0 +1,120 @@
+/* RecoverAI base theme — flat light design system.
+   Shared by all frontend pages: login, dashboard, and future pages.
+   Tokens are the single source of truth for colors and type. */
+
+:root {
+  --color-bg: #FFFFFF;
+  --color-text: #0C2451;
+  --color-text-muted: #6B7280;
+  --color-accent: #3395FF;      /* primary button + small highlights only */
+  --color-border: #E5E7EB;
+  --color-border-strong: #D1D5DB;
+  --color-surface-muted: #F9FAFB;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.shell { width: 100%; max-width: 420px; }
+
+/* Wordmark: plain text, accent used only as a small highlight */
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+
+.brand-name {
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.brand-name span { color: var(--color-accent); }
+
+/* Card: white, flat 1px border, no shadow */
+.card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 36px 32px;
+}
+
+.card h1 {
+  font-size: 19px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.card .sub {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  margin-bottom: 28px;
+}
+
+/* Standard Google sign-in button */
+.google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--color-bg);
+  color: #1F2937;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 560;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.google-btn:hover { background: var(--color-surface-muted); }
+
+.google-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.status {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  min-height: 18px;
+  margin-top: 16px;
+}
+
+.error-banner {
+  display: none;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+}
+
+.footer {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.hidden { display: none; }

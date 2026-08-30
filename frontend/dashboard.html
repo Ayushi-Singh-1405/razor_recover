@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — RecoverAI</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <style>
+    /* Page-specific: dashboard uses the shared theme tokens */
+    .card { text-align: center; }
+
+    .avatar {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--color-accent);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 18px;
+      font-size: 20px; font-weight: 650; color: #FFFFFF;
+    }
+
+    .card p.email {
+      font-size: 14px;
+      color: var(--color-text-muted);
+      margin-bottom: 26px;
+    }
+
+    .placeholder {
+      background: var(--color-surface-muted);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--color-text-muted);
+      margin-bottom: 26px;
+      text-align: left;
+    }
+
+    .logout {
+      display: inline-block;
+      font-size: 13px;
+      color: var(--color-text-muted);
+      text-decoration: none;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 9px 18px;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .logout:hover { color: var(--color-text); border-color: var(--color-border-strong); }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="brand">
+      <div class="brand-name">Recover<span>AI</span></div>
+    </div>
+
+    <div class="card">
+      <div class="avatar" id="avatar"></div>
+      <h1 id="merchant-name">Loading…</h1>
+      <p class="email" id="merchant-email"></p>
+
+      <div class="placeholder">
+        Dashboard metrics are coming in the next phase: at-risk volume,
+        recovery rate, net ₹ recovered, and escalation actions.
+      </div>
+
+      <a class="logout" href="/auth/logout">Sign out</a>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    async function loadSession() {
+      try {
+        const res = await fetch("/auth/me", { credentials: "same-origin" });
+        if (res.status === 401) {
+          window.location.replace("/login");
+          return;
+        }
+        if (!res.ok) throw new Error("unexpected status " + res.status);
+        const me = await res.json();
+        document.getElementById("merchant-name").textContent =
+          me.name ? "Welcome, " + me.name.split(" ")[0] : "Welcome";
+        document.getElementById("merchant-email").textContent = me.email;
+        const initial = (me.name || me.email || "?").trim()[0].toUpperCase();
+        document.getElementById("avatar").textContent = initial;
+      } catch (err) {
+        document.getElementById("status").textContent =
+          "Could not load session. Is the backend running?";
+      }
+    }
+
+    loadSession();
+  </script>
+</body>
+</html>
