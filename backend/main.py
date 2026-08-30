@@ -1,9 +1,12 @@
 import json
 import logging
+import os
 import uuid
 from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, HTTPException, Path, Request
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -11,10 +14,32 @@ from sqlalchemy.orm import Session
 from db import SessionLocal
 from models import Transaction, AuditLog, WebhookEvent
 from config import razorpay_client, RAZORPAY_WEBHOOK_SECRET
+from auth import router as auth_router
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="RecoverAI", version="0.1.0")
+app.include_router(auth_router)
+
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse("/login")
+
+
+@app.get("/login", include_in_schema=False)
+def login_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "login.html"))
+
+
+@app.get("/dashboard", include_in_schema=False)
+def dashboard_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "dashboard.html"))
+
+
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 
 @app.get("/health")
