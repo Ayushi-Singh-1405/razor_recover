@@ -15,6 +15,8 @@ class Transaction(Base):
     razorpay_payment_link_id = Column(String, nullable=True)
     amount_paise = Column(Integer, nullable=False)
     status = Column(String, nullable=False, default="created")
+    failure_reason = Column(String, nullable=True)
+    previous_recovery_attempts = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
