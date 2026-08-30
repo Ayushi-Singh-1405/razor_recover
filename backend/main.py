@@ -22,14 +22,18 @@ def health():
     return {"status": "ok"}
 
 
+class CreateTestOrderRequest(BaseModel):
+    amount_paise: int = 499900
+
+
 class CreateTestOrderResponse(BaseModel):
     transaction_id: str
     razorpay_order_id: str
 
 
 @app.post("/transactions/create-test-order", response_model=CreateTestOrderResponse)
-def create_test_order():
-    amount_paise = 499900
+def create_test_order(request: CreateTestOrderRequest | None = None):
+    amount_paise = request.amount_paise if request is not None else 499900
 
     try:
         order = razorpay_client.order.create({
