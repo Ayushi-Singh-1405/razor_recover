@@ -8,7 +8,40 @@
   <style>
     /* Page-specific — everything else comes from theme.css */
     .container { max-width: 860px; }
-    .wordmark { text-align: center; margin: var(--space-6) 0 var(--space-5); }
+    .wordmark { text-align: center; }
+
+    .hero { text-align: center; margin: var(--space-6) 0 var(--space-5); }
+    .hero .wordmark { font-size: var(--font-size-xl); font-weight: 700; letter-spacing: 0.08em; }
+    .hero-tagline {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      margin-top: 2px;
+    }
+    .hero-stats {
+      margin: var(--space-4) 0;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+    }
+    .hero-stats strong { color: var(--color-text-primary); }
+    .hero-flow {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-primary);
+      display: flex; align-items: center; justify-content: center;
+      gap: var(--space-2); flex-wrap: wrap;
+    }
+    .flow-step {
+      border: var(--border-default);
+      border-radius: var(--radius-sm);
+      background: var(--color-bg);
+      padding: 3px 10px;
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .flow-step-gate { border-color: var(--color-accent); color: var(--color-accent); }
+    .flow-arrow { color: var(--color-accent); font-weight: 600; }
 
     .avatar {
       width: 44px; height: 44px; border-radius: 50%;
@@ -64,6 +97,13 @@
       font-weight: 600;
     }
 
+    .escalation-actions {
+      display: flex; gap: var(--space-2); margin-top: var(--space-3);
+      flex-wrap: wrap;
+    }
+    .escalation-actions .btn { padding: var(--space-2) var(--space-3); font-size: var(--font-size-sm); }
+    [data-row-error] { margin-top: var(--space-2); }
+
     .audit-toggle {
       background: none; border: none; padding: 0;
       color: var(--color-accent);
@@ -117,11 +157,60 @@
 
     .status { text-align: center; min-height: 18px; }
     .hidden { display: none; }
+
+    /* Agent Evaluation — visually quieter than the sections above */
+    .agent-eval h3 {
+      margin: 0;
+      font-size: var(--font-size-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .eval-question {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-primary);
+      font-weight: 600;
+      margin: var(--space-3) 0;
+    }
+    .agent-eval table td:first-child { color: var(--color-text-secondary); }
+    .verdict-callout {
+      margin-top: var(--space-4);
+      padding: var(--space-3) var(--space-4);
+      background: rgba(51, 149, 255, 0.06);
+      border: var(--border-default);
+      border-left: 3px solid var(--color-accent);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+      line-height: 1.55;
+      color: var(--color-text-primary);
+    }
+
+    /* System Status widget */
+    .status-line {
+      display: flex; align-items: baseline; gap: var(--space-2);
+      padding: var(--space-2) 0;
+      border-bottom: 1px dashed var(--color-border);
+    }
+    .status-line:last-child { border-bottom: none; padding-bottom: 0; }
+    .status-label { flex: 1; font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+    .status-value {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      text-align: right;
+      max-width: 60%;
+    }
+    .status-value-ok { color: var(--color-success); }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="wordmark">Recover<span class="accent">AI</span></div>
+    <div class="hero">
+      <div class="wordmark">RECOVERAI</div>
+      <div class="hero-tagline">Agentic Payment Recovery</div>
+      <div class="hero-stats" id="hero-stats">Loading benchmark…</div>
+      <div class="hero-flow">
+        <span class="flow-step">Detect</span><span class="flow-arrow">→</span><span class="flow-step">Diagnose</span><span class="flow-arrow">→</span><span class="flow-step">Decide</span><span class="flow-arrow">→</span><span class="flow-step flow-step-gate">Policy Gate</span><span class="flow-arrow">→</span><span class="flow-step">Act</span><span class="flow-arrow">→</span><span class="flow-step">Audit</span>
+      </div>
+    </div>
 
     <div class="card mb-4">
       <div class="flex items-center gap-3">
@@ -150,11 +239,50 @@
       <div id="exec-rows"></div>
     </div>
 
-    <div class="card">
-      <p class="text-muted" style="margin: 0;">
-        Agent Evaluation (benchmark comparison) and the escalation approve/dismiss
-        queue arrive in the next phase.
-      </p>
+    <div class="card card-sm mb-4" id="system-status">
+      <div class="metric-label" style="margin-bottom: var(--space-2);">System Status</div>
+      <div class="status-line">
+        <span class="status-dot status-dot-active"></span>
+        <span class="status-label">Razorpay Test Mode</span>
+        <span class="status-value status-value-ok">Connected</span>
+      </div>
+      <div class="status-line">
+        <span class="status-dot status-dot-active"></span>
+        <span class="status-label">Policy Gate</span>
+        <span class="status-value status-value-ok">Active</span>
+      </div>
+      <div class="status-line">
+        <span class="status-dot status-dot-active"></span>
+        <span class="status-label">Audit Logging</span>
+        <span class="status-value status-value-ok">Active</span>
+      </div>
+      <div class="status-line">
+        <span class="status-dot status-dot-disabled" id="llm-auth-dot"></span>
+        <span class="status-label">LLM Execution Authority</span>
+        <span class="status-value" id="llm-auth-value">Checking…</span>
+      </div>
+    </div>
+
+    <div class="card card-sm agent-eval">
+      <div class="section-header">
+        <h3>Agent Evaluation</h3>
+        <span class="provenance-tag provenance-simulated">SIMULATED</span>
+        <span class="text-muted text-xs">· Day 3</span>
+      </div>
+      <p class="eval-question">How do we know the agent's decisions are any good?</p>
+
+      <table>
+        <thead>
+          <tr><th></th><th>Recovery Agent</th><th>Deterministic Benchmark</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>₹ Recovered</td><td id="eval-agent-recovered">…</td><td id="eval-bench-recovered">…</td></tr>
+          <tr><td>Precision</td><td id="eval-agent-precision">…</td><td id="eval-bench-precision">…</td></tr>
+          <tr><td>Bad interventions</td><td id="eval-agent-bad">…</td><td id="eval-bench-bad">…</td></tr>
+        </tbody>
+      </table>
+
+      <div class="verdict-callout" id="verdict-callout">…</div>
     </div>
 
     <div class="status" id="status"></div>
@@ -266,6 +394,13 @@
         outcome = `${esc(humanReason(t.reason))} · <span class="exec-not-executed">API call: NOT EXECUTED</span>`;
       }
 
+      const escalationActions = t.decision === "escalate" ? `
+        <div class="escalation-actions">
+          <button class="btn btn-primary" data-escalation-action="approve">Approve</button>
+          <button class="btn btn-danger-outline" data-escalation-action="dismiss">Dismiss</button>
+        </div>
+        <div class="alert alert-danger hidden" data-row-error></div>` : "";
+
       const corrected = wasCorrectedDuringDevelopment(t.audit_chain);
       const correctionCallout = corrected ? `
         <div class="callout">
@@ -288,6 +423,7 @@
             </div>
             <button class="audit-toggle" data-toggle-audit="1">Audit trail</button>
           </div>
+          ${escalationActions}
           <div class="audit-panel hidden">
             ${correctionCallout}
             ${groupedAuditHtml(t.audit_chain)}
@@ -323,8 +459,58 @@
         panel.classList.toggle("hidden");
         correctionToggle.textContent = panel.classList.contains("hidden")
           ? "Show full history" : "Hide full history";
+        return;
       }
+      handleEscalationAction(ev);
     });
+
+    async function handleEscalationAction(ev) {
+      const btn = ev.target.closest("[data-escalation-action]");
+      if (!btn) return;
+      const row = btn.closest(".exec-row");
+      const action = btn.dataset.escalationAction; // approve | dismiss
+      const txnId = row.dataset.txn;
+      const errEl = row.querySelector("[data-row-error]");
+      const buttons = row.querySelectorAll("[data-escalation-action]");
+
+      if (action === "approve" &&
+          !confirm("Approve manual recovery? A real Razorpay payment link will be created.")) {
+        return;
+      }
+
+      buttons.forEach(b => b.disabled = true);
+      errEl.classList.add("hidden");
+      try {
+        const res = await fetch(`/dashboard/escalations/${txnId}/${action}`, {
+          method: "POST",
+          credentials: "same-origin",
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+
+        const outcomeEl = row.querySelector(".exec-outcome");
+        const badgeEl = row.querySelector(".badge");
+        if (action === "approve") {
+          outcomeEl.innerHTML =
+            `<strong>✓ MERCHANT APPROVED → Payment Link Created</strong> ` +
+            `<span class="text-muted text-xs">triggered_by: merchant_manual_approval</span> · ` +
+            `<a href="${esc(body.short_url)}" target="_blank" rel="noopener">Open payment link</a>`;
+          badgeEl.className = "badge badge-success";
+          badgeEl.textContent = "ACTION";
+        } else {
+          outcomeEl.innerHTML =
+            `<strong>Dismissed by ${esc(body.dismissed_by)}</strong> ` +
+            `<span class="exec-not-executed">API call: NOT EXECUTED</span>`;
+          badgeEl.className = "badge badge-neutral";
+          badgeEl.textContent = "DISMISSED";
+        }
+        buttons.forEach(b => b.remove());
+      } catch (err) {
+        errEl.textContent = "Action failed: " + err.message;
+        errEl.classList.remove("hidden");
+        buttons.forEach(b => b.disabled = false);
+      }
+    }
 
     async function loadSession() {
       // file:// can't reach the API or same-origin cookies — show instructions.
@@ -362,6 +548,34 @@
         }
         if (!res.ok) throw new Error("unexpected status " + res.status);
         const summary = await res.json();
+
+        // System Status: LLM Execution Authority from the live API response
+        // (never hardcoded — reflects whatever the policy currently grants).
+        const reAuth = summary.real_execution.llm_execution_authority;
+        document.getElementById("llm-auth-dot").className =
+          "status-dot " + (reAuth ? "status-dot-active" : "status-dot-disabled");
+        document.getElementById("llm-auth-value").textContent = reAuth
+          ? "Granted"
+          : "Disabled — benchmark did not justify autonomous authority";
+
+        const ae = summary.agent_evaluation;
+        const fmtLakhs = p => "₹" + (p / 100 / 100000).toFixed(1) + "L";
+        const fmtPct = p => Math.round(p * 100) + "%";
+        document.getElementById("eval-agent-recovered").textContent = fmtLakhs(ae.agent.recovered_paise);
+        document.getElementById("eval-bench-recovered").textContent = fmtLakhs(ae.benchmark.recovered_paise);
+        document.getElementById("eval-agent-precision").textContent = fmtPct(ae.agent.targeting_precision);
+        document.getElementById("eval-bench-precision").textContent = fmtPct(ae.benchmark.targeting_precision);
+        document.getElementById("eval-agent-bad").textContent = ae.agent.bad_interventions;
+        document.getElementById("eval-bench-bad").textContent = ae.benchmark.bad_interventions;
+        document.getElementById("verdict-callout").textContent = ae.verdict_text;
+
+        const detection = summary.detection;
+        const lakhs = (detection.revenue_at_risk_paise / 100 / 100000).toFixed(1);
+        document.getElementById("hero-stats").innerHTML =
+          `<strong>₹${lakhs}L</strong> at risk · ` +
+          `<strong>${detection.total_events.toLocaleString("en-IN")}</strong> transactions ` +
+          `<span class="provenance-tag provenance-simulated">SIMULATED</span>`;
+
         renderLiveExecution(summary.real_execution);
       } catch (err) {
         document.getElementById("exec-summary").textContent =
