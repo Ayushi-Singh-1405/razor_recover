@@ -18,6 +18,7 @@ from db import SessionLocal, get_db
 from models import Transaction, AuditLog, WebhookEvent, SyntheticEvent, DetectionResult, Merchant
 from config import DATABASE_URL, razorpay_client, RAZORPAY_WEBHOOK_SECRET
 from auth import router as auth_router, get_current_merchant
+from dashboard_actions import router as dashboard_actions_router
 from simulate_outcomes import (
     build_agent_pairs,
     build_baseline_pairs,
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="RecoverAI", version="0.1.0")
 app.include_router(auth_router)
+app.include_router(dashboard_actions_router)
 
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
 
