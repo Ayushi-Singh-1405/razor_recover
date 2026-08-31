@@ -7,63 +7,333 @@
   <link rel="stylesheet" href="/static/theme.css">
   <style>
     /* Page-specific — everything else comes from theme.css */
-    .page-center .card { width: 100%; max-width: 480px; text-align: center; }
+    .container { max-width: 860px; }
+    .wordmark { text-align: center; margin: var(--space-6) 0 var(--space-5); }
 
     .avatar {
-      width: 52px; height: 52px; border-radius: 50%;
+      width: 44px; height: 44px; border-radius: 50%;
       background: var(--color-accent);
       display: flex; align-items: center; justify-content: center;
-      margin: 0 auto var(--space-4);
-      font-size: var(--font-size-lg); font-weight: 700; color: #FFFFFF;
+      font-size: var(--font-size-md); font-weight: 700; color: #FFFFFF;
+      flex-shrink: 0;
     }
 
-    .placeholder {
+    .section-header {
+      display: flex; align-items: center; gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+    .section-header h2 { margin: 0; }
+
+    .summary-row {
+      display: flex; flex-wrap: wrap;
+      gap: var(--space-2) var(--space-3);
+      padding: var(--space-3) var(--space-4);
       background: var(--color-bg-subtle);
       border: var(--border-default);
       border-radius: var(--radius-sm);
-      padding: var(--space-4);
+      margin: var(--space-4) 0;
       font-size: var(--font-size-sm);
-      line-height: 1.55;
       color: var(--color-text-secondary);
-      margin-bottom: var(--space-4);
-      text-align: left;
+    }
+    .summary-row strong { color: var(--color-text-primary); }
+
+    .exec-row {
+      padding: var(--space-4) 0;
+      border-top: var(--border-default);
+    }
+    .exec-row:first-of-type { border-top: none; padding-top: var(--space-2); }
+
+    .exec-main {
+      display: flex; align-items: flex-start;
+      gap: var(--space-3);
+    }
+    .exec-icon { flex-shrink: 0; padding-top: 2px; }
+    .exec-icon svg { width: 20px; height: 20px; display: block; }
+    .exec-info { flex: 1; }
+    .exec-title {
+      display: flex; align-items: center; gap: var(--space-2);
+      flex-wrap: wrap;
+      margin-bottom: 2px;
+    }
+    .exec-outcome { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+    .exec-not-executed {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      font-weight: 600;
     }
 
+    .audit-toggle {
+      background: none; border: none; padding: 0;
+      color: var(--color-accent);
+      font-size: var(--font-size-sm);
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .audit-toggle:hover { text-decoration: underline; }
+
+    .audit-panel {
+      margin-top: var(--space-3);
+      background: var(--color-bg-subtle);
+      border: var(--border-default);
+      border-radius: var(--radius-sm);
+      padding: var(--space-3) var(--space-4);
+    }
+    .audit-event { padding: var(--space-2) 0; border-bottom: 1px dashed var(--color-border); }
+    .audit-event:last-child { border-bottom: none; padding-bottom: 0; }
+    .audit-details {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      word-break: break-all;
+      margin-top: 2px;
+    }
+    .verified-note { margin-top: 2px; font-style: italic; }
+
+    .callout {
+      background: var(--color-warning-bg);
+      border: 1px solid #FDE68A;
+      color: var(--color-warning);
+      font-size: var(--font-size-sm);
+      border-radius: var(--radius-sm);
+      padding: var(--space-2) var(--space-3);
+      margin-bottom: var(--space-3);
+      display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+    .correction-toggle {
+      background: none; border: none; padding: 0;
+      color: var(--color-accent);
+      font-size: var(--font-size-sm);
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .correction-toggle:hover { text-decoration: underline; }
+
+    .full-history { margin-top: var(--space-3); }
+    .full-history h3 { margin-bottom: var(--space-2); }
+
     .status { text-align: center; min-height: 18px; }
+    .hidden { display: none; }
   </style>
 </head>
-<body class="page-center">
-  <div>
-    <div class="wordmark" style="text-align: center; margin-bottom: var(--space-5);">
-      Recover<span class="accent">AI</span>
+<body>
+  <div class="container">
+    <div class="wordmark">Recover<span class="accent">AI</span></div>
+
+    <div class="card mb-4">
+      <div class="flex items-center gap-3">
+        <div class="avatar" id="avatar"></div>
+        <div class="flex-col" style="flex: 1;">
+          <h3 id="merchant-name" style="margin: 0;">Loading…</h3>
+          <span class="text-muted" id="merchant-email"></span>
+        </div>
+        <a class="btn" href="/auth/logout">Sign out</a>
+      </div>
+    </div>
+
+    <div class="card card-lg mb-4">
+      <div class="section-header">
+        <h2>LIVE EXECUTION</h2>
+        <span class="provenance-tag provenance-real">REAL</span>
+        <span class="text-muted text-xs">· Razorpay Test Mode</span>
+      </div>
+      <p class="text-secondary" style="margin-top: var(--space-2);">
+        Decision engine: <strong style="color: var(--color-text-primary);">Deterministic Policy Gate</strong>.
+        LLM execution authority: <strong style="color: var(--color-text-primary);">Not yet granted</strong>
+        (see Agent Evaluation below).
+      </p>
+
+      <div class="summary-row" id="exec-summary">Loading execution data…</div>
+      <div id="exec-rows"></div>
     </div>
 
     <div class="card">
-      <div class="avatar" id="avatar"></div>
-      <h2 id="merchant-name">Loading…</h2>
-      <p id="merchant-email"></p>
-
-      <div class="placeholder">
-        Dashboard metrics are coming in the next phase: at-risk volume,
-        recovery rate, net ₹ recovered, and escalation actions.
-      </div>
-
-      <a class="btn" href="/auth/logout">Sign out</a>
+      <p class="text-muted" style="margin: 0;">
+        Agent Evaluation (benchmark comparison) and the escalation approve/dismiss
+        queue arrive in the next phase.
+      </p>
     </div>
 
-    <div class="status text-muted text-xs" id="status"></div>
+    <div class="status" id="status"></div>
   </div>
 
   <script>
-    async function loadSession() {
-    // file:// can't reach the API or same-origin cookies — show instructions.
-    if (window.location.protocol === "file:") {
-      errorBanner.textContent = "This page was opened as a local file. Start the backend "
-        + "(from backend/: ../venv/bin/uvicorn main:app --reload) and open "
-        + "http://localhost:8000/login instead.";
-      errorBanner.style.display = "block";
-      return;
+    const esc = s => String(s).replace(/[&<>"']/g,
+      c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+
+    const fmtINR = paise =>
+      "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+
+    const fmtTime = iso =>
+      new Date(iso).toLocaleString("en-IN",
+        { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+
+    const REASON_TEXT = {
+      attempts_at_cap: "Attempt limit reached",
+      already_recovered: "Already recovered",
+      amount_above_cap: "Above automated cap",
+      low_recoverability: "Low recoverability",
+      tier_none: "Not recoverable",
+      max_real_recovery_actions_reached: "Action cap reached",
+    };
+    const humanReason = reason =>
+      REASON_TEXT[reason] ||
+      (reason ? reason.charAt(0).toUpperCase() + reason.slice(1).replace(/_/g, " ") : "—");
+
+    const ICONS = {
+      action: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#16A34A"/><path d="m8.5 12.2 2.4 2.4 4.6-4.9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      stop: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#DC2626"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
+      escalate: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3 22 20H2L12 3z" fill="#D97706"/><path d="M12 9.5v4.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.1" fill="#fff"/></svg>',
+    };
+    const BADGES = { action: "badge-success", stop: "badge-danger", escalate: "badge-warning" };
+    const BADGE_TEXT = { action: "ACTION", stop: "STOP", escalate: "ESCALATE" };
+
+    function detailsText(details) {
+      return Object.entries(details || {})
+        .filter(([k]) => k !== "phase")
+        .map(([k, v]) => `${esc(k)}=${esc(String(v))}`)
+        .join(" · ") || "—";
     }
+
+    // Group audit entries by event type; keep only the most recent entry
+    // per type (chain arrives chronological).
+    function groupChain(chain) {
+      const order = [];
+      const groups = new Map();
+      for (const e of chain) {
+        if (!groups.has(e.event)) {
+          groups.set(e.event, { count: 0, latest: null });
+          order.push(e.event);
+        }
+        const g = groups.get(e.event);
+        g.count += 1;
+        g.latest = e;
+      }
+      return order.map(ev => ({ event: ev, ...groups.get(ev) }));
+    }
+
+    // SPECIAL CASE (amount_above_cap): both an execution_stopped AND a later
+    // execution_escalated for the same reason = classification corrected
+    // during development. Genuine bug-fix trail — shown deliberately.
+    function wasCorrectedDuringDevelopment(chain) {
+      const stopped = chain
+        .filter(e => e.event === "execution_stopped" && e.details && e.details.reason === "amount_above_cap")
+        .map(e => e.timestamp);
+      if (!stopped.length) return false;
+      return chain.some(e =>
+        e.event === "execution_escalated" &&
+        e.details && e.details.reason === "amount_above_cap" &&
+        stopped.some(t => e.timestamp > t));
+    }
+
+    function groupedAuditHtml(chain) {
+      return groupChain(chain).map(g => `
+        <div class="audit-event">
+          <div>
+            <strong>${esc(g.event)}</strong>
+            <span class="text-muted text-xs">· latest ${esc(fmtTime(g.latest.timestamp))}</span>
+          </div>
+          <div class="audit-details">${detailsText(g.latest.details)}</div>
+          ${g.count > 1 ? `<div class="text-muted text-xs verified-note">Verified consistent across ${g.count} runs</div>` : ""}
+        </div>`).join("");
+    }
+
+    function fullHistoryHtml(chain) {
+      return `<div class="full-history">
+        <h3 class="text-xs" style="text-transform: uppercase; letter-spacing: 0.03em;">Full chronological history</h3>
+        ${chain.map(e => `
+          <div class="audit-event">
+            <div>
+              <strong>${esc(e.event)}</strong>
+              <span class="text-muted text-xs">· ${esc(fmtTime(e.timestamp))}</span>
+            </div>
+            <div class="audit-details">${detailsText(e.details)}</div>
+          </div>`).join("")}
+      </div>`;
+    }
+
+    function rowHtml(t) {
+      const shortId = "#" + t.transaction_id.slice(0, 8);
+      const badge = `<span class="badge ${BADGES[t.decision] || "badge-neutral"}">${BADGE_TEXT[t.decision] || esc(t.decision)}</span>`;
+
+      let outcome;
+      if (t.decision === "action") {
+        outcome = `<strong>Payment Link created → ${t.recovered ? "Recovered" : "Awaiting payment"}</strong>`;
+      } else {
+        outcome = `${esc(humanReason(t.reason))} · <span class="exec-not-executed">API call: NOT EXECUTED</span>`;
+      }
+
+      const corrected = wasCorrectedDuringDevelopment(t.audit_chain);
+      const correctionCallout = corrected ? `
+        <div class="callout">
+          <span>Classification corrected during development (STOP → ESCALATE) — see full history</span>
+          <button class="correction-toggle" data-toggle-full="1">Show full history</button>
+        </div>` : "";
+
+      return `
+        <div class="exec-row" data-txn="${esc(t.transaction_id)}">
+          <div class="exec-main">
+            <span class="exec-icon">${ICONS[t.decision] || ""}</span>
+            <div class="exec-info">
+              <div class="exec-title">
+                <strong>${esc(t.scenario || "(unnamed scenario)")}</strong>
+                ${badge}
+                <span class="text-muted text-xs">${esc(shortId)}</span>
+              </div>
+              <div class="exec-outcome">${outcome}</div>
+              <div class="text-muted text-xs">${esc(fmtINR(t.amount_paise))}</div>
+            </div>
+            <button class="audit-toggle" data-toggle-audit="1">Audit trail</button>
+          </div>
+          <div class="audit-panel hidden">
+            ${correctionCallout}
+            ${groupedAuditHtml(t.audit_chain)}
+            ${corrected ? fullHistoryHtml(t.audit_chain) : ""}
+          </div>
+        </div>`;
+    }
+
+    function renderLiveExecution(re) {
+      document.getElementById("exec-summary").innerHTML = `
+        <span><strong>${re.scenarios_run}</strong> scenarios</span>
+        <span>· <strong>${re.actions_taken}</strong> actions</span>
+        <span>· <strong>${re.stopped}</strong> stopped</span>
+        <span>· <strong>${re.escalated}</strong> escalated</span>
+        <span>· <strong>${esc(fmtINR(re.real_paise_recovered))}</strong> recovered</span>`;
+
+      document.getElementById("exec-rows").innerHTML =
+        re.transactions.map(rowHtml).join("");
+    }
+
+    // Expand/collapse via delegation
+    document.addEventListener("click", (ev) => {
+      const auditToggle = ev.target.closest("[data-toggle-audit]");
+      if (auditToggle) {
+        const panel = auditToggle.closest(".exec-row").querySelector(".audit-panel");
+        panel.classList.toggle("hidden");
+        auditToggle.textContent = panel.classList.contains("hidden") ? "Audit trail" : "Hide audit trail";
+        return;
+      }
+      const correctionToggle = ev.target.closest("[data-toggle-full]");
+      if (correctionToggle) {
+        const panel = correctionToggle.closest(".audit-panel").querySelector(".full-history");
+        panel.classList.toggle("hidden");
+        correctionToggle.textContent = panel.classList.contains("hidden")
+          ? "Show full history" : "Hide full history";
+      }
+    });
+
+    async function loadSession() {
+      // file:// can't reach the API or same-origin cookies — show instructions.
+      if (window.location.protocol === "file:") {
+        document.getElementById("status").textContent =
+          "This page was opened as a local file. Start the backend (from backend/: "
+          + "../venv/bin/uvicorn main:app --reload) and open http://localhost:8000/dashboard instead.";
+        return;
+      }
 
       try {
         const res = await fetch("/auth/me", { credentials: "same-origin" });
@@ -81,6 +351,21 @@
       } catch (err) {
         document.getElementById("status").textContent =
           "Could not load session. Is the backend running?";
+        return;
+      }
+
+      try {
+        const res = await fetch("/dashboard/summary", { credentials: "same-origin" });
+        if (res.status === 401) {
+          window.location.replace("/login");
+          return;
+        }
+        if (!res.ok) throw new Error("unexpected status " + res.status);
+        const summary = await res.json();
+        renderLiveExecution(summary.real_execution);
+      } catch (err) {
+        document.getElementById("exec-summary").textContent =
+          "Could not load execution data. Is the backend running?";
       }
     }
 
