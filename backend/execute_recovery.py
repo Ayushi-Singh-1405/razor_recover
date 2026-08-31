@@ -118,6 +118,22 @@ def main() -> int:
                 continue
 
             if txn.status == "recovered":
+                # A transaction that was already actioned and then paid via
+                # webhook has a complete, fully-audited lifecycle. Re-running
+                # the gate must not append duplicate already_recovered entries
+                # — that would flip its recorded decision on the dashboard.
+                prior_action = (
+                    db.query(AuditLog)
+                    .filter(
+                        AuditLog.transaction_id == txn.id,
+                        AuditLog.event == "execution_action_taken",
+                    )
+                    .first()
+                )
+                if prior_action:
+                    print(f"{short} → SKIP (already recovered following an executed action)")
+                    counters["skipped"] += 1
+                    continue
                 write_audit(db, txn.id, "execution_stopped", {
                     "reason": "already_recovered",
                     "status": txn.status,

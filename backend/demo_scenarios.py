@@ -100,7 +100,7 @@ def execution_branch(recoverability: str, amount_paise: int, attempts: int, stat
     if recoverability == "high":
         return "ACTION", "tier_high_within_limits"
     if recoverability == "low":
-        return "ESCALATE", "tier_low"
+        return "ESCALATE", "low_recoverability"
     return "STOP", "tier_none"
 
 
