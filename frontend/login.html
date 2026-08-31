@@ -5,20 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign in — RecoverAI</title>
   <link rel="stylesheet" href="/static/theme.css">
+  <style>
+    /* Page-specific — everything else comes from theme.css */
+    .page-center .card { width: 100%; max-width: 420px; }
+    .btn-google svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .status { text-align: center; min-height: 18px; }
+    .footer { text-align: center; margin-top: var(--space-5); }
+    .hidden { display: none; }
+  </style>
 </head>
-<body>
-  <div class="shell">
-    <div class="brand">
-      <div class="brand-name">Recover<span>AI</span></div>
+<body class="page-center">
+  <div>
+    <div class="wordmark" style="text-align: center; margin-bottom: var(--space-5);">
+      Recover<span class="accent">AI</span>
     </div>
 
     <div class="card">
-      <h1>Merchant sign in</h1>
-      <p class="sub">Detect failed payments, recover checkout abandonment, and reclaim revenue — with policy-safe automation.</p>
+      <h2>Merchant sign in</h2>
+      <p>Detect failed payments, recover checkout abandonment, and reclaim revenue — with policy-safe automation.</p>
 
-      <div class="error-banner" id="error-banner"></div>
+      <div class="alert alert-danger hidden" id="error-banner"></div>
 
-      <button class="google-btn hidden" id="google-btn" onclick="window.location.href='/auth/google/login'">
+      <button class="btn btn-google hidden" id="google-btn" onclick="window.location.href='/auth/google/login'">
         <svg viewBox="0 0 48 48" aria-hidden="true">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
           <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -28,10 +36,10 @@
         Sign in with Google
       </button>
 
-      <div class="status" id="status">Checking session…</div>
+      <div class="status text-muted text-xs" id="status">Checking session…</div>
     </div>
 
-    <div class="footer">Protected merchant access · Razorpay Test Mode</div>
+    <div class="footer text-muted text-xs">Protected merchant access · Razorpay Test Mode</div>
   </div>
 
   <script>
@@ -40,6 +48,15 @@
     const errorBanner = document.getElementById("error-banner");
 
     async function checkSession() {
+    // file:// can't reach the API or same-origin cookies — show instructions.
+    if (window.location.protocol === "file:") {
+      errorBanner.textContent = "This page was opened as a local file. Start the backend "
+        + "(from backend/: ../venv/bin/uvicorn main:app --reload) and open "
+        + "http://localhost:8000/login instead.";
+      errorBanner.style.display = "block";
+      return;
+    }
+
       try {
         const res = await fetch("/auth/me", { credentials: "same-origin" });
         if (res.ok) {

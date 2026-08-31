@@ -6,73 +6,65 @@
   <title>Dashboard — RecoverAI</title>
   <link rel="stylesheet" href="/static/theme.css">
   <style>
-    /* Page-specific: dashboard uses the shared theme tokens */
-    .card { text-align: center; }
+    /* Page-specific — everything else comes from theme.css */
+    .page-center .card { width: 100%; max-width: 480px; text-align: center; }
 
     .avatar {
       width: 52px; height: 52px; border-radius: 50%;
       background: var(--color-accent);
       display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 18px;
-      font-size: 20px; font-weight: 650; color: #FFFFFF;
-    }
-
-    .card p.email {
-      font-size: 14px;
-      color: var(--color-text-muted);
-      margin-bottom: 26px;
+      margin: 0 auto var(--space-4);
+      font-size: var(--font-size-lg); font-weight: 700; color: #FFFFFF;
     }
 
     .placeholder {
-      background: var(--color-surface-muted);
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      padding: 16px;
-      font-size: 13px;
+      background: var(--color-bg-subtle);
+      border: var(--border-default);
+      border-radius: var(--radius-sm);
+      padding: var(--space-4);
+      font-size: var(--font-size-sm);
       line-height: 1.55;
-      color: var(--color-text-muted);
-      margin-bottom: 26px;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-4);
       text-align: left;
     }
 
-    .logout {
-      display: inline-block;
-      font-size: 13px;
-      color: var(--color-text-muted);
-      text-decoration: none;
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      padding: 9px 18px;
-      transition: color 0.15s ease, border-color 0.15s ease;
-    }
-
-    .logout:hover { color: var(--color-text); border-color: var(--color-border-strong); }
+    .status { text-align: center; min-height: 18px; }
   </style>
 </head>
-<body>
-  <div class="shell">
-    <div class="brand">
-      <div class="brand-name">Recover<span>AI</span></div>
+<body class="page-center">
+  <div>
+    <div class="wordmark" style="text-align: center; margin-bottom: var(--space-5);">
+      Recover<span class="accent">AI</span>
     </div>
 
     <div class="card">
       <div class="avatar" id="avatar"></div>
-      <h1 id="merchant-name">Loading…</h1>
-      <p class="email" id="merchant-email"></p>
+      <h2 id="merchant-name">Loading…</h2>
+      <p id="merchant-email"></p>
 
       <div class="placeholder">
         Dashboard metrics are coming in the next phase: at-risk volume,
         recovery rate, net ₹ recovered, and escalation actions.
       </div>
 
-      <a class="logout" href="/auth/logout">Sign out</a>
+      <a class="btn" href="/auth/logout">Sign out</a>
     </div>
 
-    <div class="status" id="status"></div>
+    <div class="status text-muted text-xs" id="status"></div>
   </div>
 
   <script>
     async function loadSession() {
+    // file:// can't reach the API or same-origin cookies — show instructions.
+    if (window.location.protocol === "file:") {
+      errorBanner.textContent = "This page was opened as a local file. Start the backend "
+        + "(from backend/: ../venv/bin/uvicorn main:app --reload) and open "
+        + "http://localhost:8000/login instead.";
+      errorBanner.style.display = "block";
+      return;
+    }
+
       try {
         const res = await fetch("/auth/me", { credentials: "same-origin" });
         if (res.status === 401) {
