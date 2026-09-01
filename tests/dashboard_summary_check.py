@@ -136,7 +136,9 @@ re_ = summary["real_execution"]
 check("scenarios_run == 9", re_["scenarios_run"] == 9, f"got {re_['scenarios_run']}")
 check("9 transaction entries", len(re_["transactions"]) == 9)
 by_scenario = {t["scenario"]: t for t in re_["transactions"]}
-check("actions_taken == 2", re_["actions_taken"] == 2, f"got {re_['actions_taken']}")
+# 5 actions = 2 automated (transient_low_amount, checkout_abandoned)
+# + 3 merchant approvals via the dashboard (the escalation practice set).
+check("actions_taken == 5", re_["actions_taken"] == 5, f"got {re_['actions_taken']}")
 check("stopped + escalated + action == scenarios", re_["stopped"] + re_["escalated"] + re_["actions_taken"] == 9)
 
 expected_branches = {
@@ -146,9 +148,9 @@ expected_branches = {
     "amount_above_cap": "escalate",
     "low_recoverability": "escalate",
     "already_recovered": "stop",
-    "amount_above_cap_2": "escalate",
-    "low_recoverability_2": "escalate",
-    "amount_above_cap_3": "escalate",
+    "amount_above_cap_2": "action",
+    "low_recoverability_2": "action",
+    "amount_above_cap_3": "action",
 }
 for name, expected in expected_branches.items():
     t = by_scenario.get(name)
@@ -160,11 +162,12 @@ check("linked scenarios have payment_link_id",
 # Non-action scenarios that were NOT recovered must have no payment link.
 # (A recovered non-action scenario may legitimately have one: e.g.
 # amount_above_cap was approved via the dashboard and paid via webhook.)
-non_action_unrecovered = [s for s in by_scenario
-                          if by_scenario[s]["decision"] != "action"
-                          and not by_scenario[s]["recovered"]]
-check("unrecovered non-action scenarios have no payment_link_id",
-      all(by_scenario[s]["payment_link_id"] is None for s in non_action_unrecovered))
+# Invariant: a payment link exists iff the transaction was actioned
+# (automated or merchant-approved) or has been recovered via webhook.
+# Escalated-but-not-yet-approved scenarios correctly have none.
+check("payment link present iff actioned or recovered",
+      all((bool(t["payment_link_id"]) == (t["decision"] == "action" or t["recovered"]))
+          for t in re_["transactions"]))
 # Real recovery expectation comes from the live webhook path (audit
 # trail), not an assumption: any revenue_recovered event on a demo
 # transaction means the demo payment link was actually paid in Test Mode.
