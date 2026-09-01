@@ -171,6 +171,7 @@ def dashboard_summary(
             "transaction_id": str(txn.id),
             "scenario": scenario_by_txn.get(txn.id),
             "amount_paise": txn.amount_paise,
+            "failure_reason": txn.failure_reason,
             "decision": decision,
             "reason": reason,
             "payment_link_id": txn.razorpay_payment_link_id,
