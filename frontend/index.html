@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revoco — Payment Recovery Infrastructure</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <style>
+    /* Landing-specific styles — everything else comes from theme.css */
+    .container { max-width: 1020px; }
+
+    /* ---- Header ---- */
+    .topnav { position: sticky; top: 0; z-index: 10; }
+    .nav-cta { display: flex; align-items: center; gap: var(--space-3); }
+    .nav-cta .login-link { font-size: var(--font-size-sm); }
+    .nav-mobile { display: none; }
+    .nav-mobile summary {
+      list-style: none; cursor: pointer;
+      font-size: var(--font-size-sm); font-weight: 600;
+      color: var(--color-text-primary);
+      border: var(--border-default); border-radius: var(--radius-sm);
+      padding: var(--space-1) var(--space-3);
+    }
+    .nav-mobile[open] summary,
+    .nav-mobile summary:hover { background: var(--color-bg-subtle); }
+    .nav-mobile .nav-links {
+      display: flex; flex-direction: column; align-items: stretch;
+      margin-top: var(--space-2);
+      background: var(--color-bg); border: var(--border-default);
+      border-radius: var(--radius-sm); padding: var(--space-2);
+    }
+    @media (max-width: 760px) {
+      .nav-links.landing-links { display: none; }
+      .nav-mobile { display: block; }
+    }
+
+    /* ---- Hero ---- */
+    .hero { text-align: center; padding: var(--space-10) var(--space-4) var(--space-8); }
+    .hero h1 {
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: var(--space-4);
+    }
+    .hero p.supporting {
+      max-width: 620px;
+      margin: 0 auto var(--space-5);
+      font-size: var(--font-size-md);
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+    }
+    .hero-cta { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; }
+
+    /* ---- Pipeline diagram (hero visual) ---- */
+    .pipeline-card {
+      max-width: 460px;
+      margin: var(--space-8) auto 0;
+      background: var(--color-bg);
+      border: var(--border-default);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card);
+      padding: var(--space-5);
+    }
+    .pipeline-title {
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+      text-align: center;
+      margin-bottom: var(--space-4);
+    }
+    .pipe { display: flex; flex-direction: column; align-items: center; }
+    .pipe-step {
+      width: 100%;
+      background: var(--color-bg);
+      border: var(--border-default);
+      border-radius: var(--radius-sm);
+      padding: var(--space-2) var(--space-4);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--color-text-primary);
+      text-align: center;
+      transition: border-color 0.15s ease;
+    }
+    .pipe-step:hover { border-color: var(--color-border-strong); }
+    .pipe-step.input { color: var(--color-text-secondary); font-weight: 500; background: var(--color-bg-subtle); }
+    .pipe-step.gate {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      background: var(--color-accent-tint);
+    }
+    .pipe-split { display: flex; gap: var(--space-3); width: 100%; }
+    .pipe-split .pipe-step { flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--space-2); }
+    .pipe-arrow { color: var(--color-accent); font-weight: 600; line-height: 1; padding: var(--space-1) 0; }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .dot-success { background: var(--color-success); }
+    .dot-warning { background: var(--color-warning); }
+
+    /* ---- Sections ---- */
+    section { padding: var(--space-8) 0; }
+    .section-head { max-width: 640px; }
+    .section-head h2 {
+      font-size: var(--font-size-lg);
+      font-weight: 650;
+      letter-spacing: -0.01em;
+      margin-bottom: var(--space-2);
+    }
+    .section-head p { color: var(--color-text-secondary); font-size: var(--font-size-base); line-height: 1.6; }
+
+    /* ---- How it works ---- */
+    .stages-flow {
+      display: flex; align-items: center; justify-content: center;
+      gap: var(--space-2); flex-wrap: wrap;
+      margin-bottom: var(--space-5);
+    }
+    .stage-num {
+      font-family: var(--font-family-brand);
+      font-size: var(--font-size-xs);
+      color: var(--color-accent);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .stage-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4);
+    }
+    .stage-grid .card h3 { font-size: var(--font-size-base); margin-bottom: var(--space-1); }
+    .stage-grid .card p { margin: 0; font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+
+    /* ---- Merchant control diagram ---- */
+    .control-card {
+      max-width: 560px;
+      margin: 0 auto;
+      background: var(--color-bg);
+      border: var(--border-default);
+      border-radius: var(--radius-md);
+      padding: var(--space-5);
+    }
+    .control-branches { display: flex; gap: var(--space-4); margin-top: 0; }
+    .control-branch { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    .control-note {
+      max-width: 560px; margin: var(--space-4) auto 0;
+      font-size: var(--font-size-sm); color: var(--color-text-muted);
+      text-align: center;
+    }
+
+    /* ---- Product preview (static composition of the real dashboard) ---- */
+    .preview-shell {
+      border: var(--border-default);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--color-bg);
+      box-shadow: var(--shadow-card);
+    }
+    .preview-bar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      border-bottom: var(--border-default);
+      background: var(--color-bg-subtle);
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+    }
+    .preview-body {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: var(--space-4);
+      padding: var(--space-4);
+      text-align: left;
+    }
+    .preview-col h4 {
+      font-size: var(--font-size-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-2);
+    }
+    .preview-row {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) 0;
+      border-bottom: 1px dashed var(--color-border);
+      font-size: var(--font-size-xs);
+    }
+    .preview-row:last-child { border-bottom: none; }
+    .preview-row .amount { margin-left: auto; color: var(--color-text-secondary); }
+    .preview-metric { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-1) 0; font-size: var(--font-size-xs); }
+    .preview-metric .metric-value { font-size: var(--font-size-md); }
+    .preview-caption {
+      text-align: center; margin-top: var(--space-3);
+      font-size: var(--font-size-xs); color: var(--color-text-muted);
+    }
+    @media (max-width: 700px) { .preview-body { grid-template-columns: 1fr; } }
+
+    /* ---- Developer + resources sections ---- */
+    .dev-cta { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+    .link-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: var(--space-4);
+    }
+    .link-grid .card a { font-weight: 600; }
+    .link-grid .card p { margin: var(--space-1) 0 0 0; font-size: var(--font-size-sm); }
+
+    /* ---- Footer ---- */
+    .footer {
+      border-top: var(--border-default);
+      margin-top: var(--space-8);
+      padding: var(--space-6) var(--space-4) var(--space-8);
+    }
+    .footer-cols {
+      display: flex; justify-content: space-between;
+      gap: var(--space-5); flex-wrap: wrap;
+    }
+    .footer .wordmark { font-size: var(--font-size-md); }
+    .footer-links { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--font-size-sm); }
+    .footer-links a { color: var(--color-text-secondary); text-decoration: none; }
+    .footer-links a:hover { color: var(--color-text-primary); text-decoration: underline; }
+    .footer-bottom {
+      margin-top: var(--space-6); font-size: var(--font-size-xs); color: var(--color-text-muted);
+    }
+
+    @media (max-width: 760px) {
+      .stage-grid { grid-template-columns: 1fr; }
+      .hero { padding-top: var(--space-8); }
+      section { padding: var(--space-6) 0; }
+    }
+  </style>
+</head>
+<body class="landing-bg">
+
+  <div class="container">
+    <nav class="topnav">
+      <a class="wordmark nav-brand" href="/">revoco</a>
+      <div class="nav-links landing-links">
+        <a class="nav-link" href="#product">Product</a>
+        <a class="nav-link" href="#how-it-works">How it works</a>
+        <a class="nav-link" href="/developers">Developers</a>
+        <a class="nav-link" href="/resources">Resources</a>
+      </div>
+      <div class="nav-cta">
+        <a class="login-link" href="/login">Log in</a>
+        <a class="btn btn-primary" href="/login">Get started</a>
+        <details class="nav-mobile">
+          <summary>Menu</summary>
+          <div class="nav-links">
+            <a class="nav-link" href="#product">Product</a>
+            <a class="nav-link" href="#how-it-works">How it works</a>
+            <a class="nav-link" href="/developers">Developers</a>
+            <a class="nav-link" href="/resources">Resources</a>
+            <a class="nav-link" href="/security">Data &amp; Security</a>
+          </div>
+        </details>
+      </div>
+    </nav>
+
+    <div class="hero" id="product">
+      <h1>Recover failed payments.<br>Automatically.</h1>
+      <p class="supporting">
+        Revoco detects failed payments, reasons about the best recovery action, and
+        executes it through a deterministic policy gate — keeping merchants in control.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="/login">Get started</a>
+        <a class="btn btn-secondary" href="https://github.com/Ayushi-Singh-1405/razor_recover" target="_blank" rel="noopener">View GitHub ↗</a>
+      </div>
+
+      <div class="pipeline-card" aria-label="Revoco recovery pipeline">
+        <div class="pipeline-title">Recovery pipeline</div>
+        <div class="pipe">
+          <div class="pipe-step input">Payment Failure</div>
+          <div class="pipe-arrow">↓</div>
+          <div class="pipe-step">Detect</div>
+          <div class="pipe-arrow">↓</div>
+          <div class="pipe-step">Diagnose</div>
+          <div class="pipe-arrow">↓</div>
+          <div class="pipe-step">Decide</div>
+          <div class="pipe-arrow">↓</div>
+          <div class="pipe-step gate">Policy Gate</div>
+          <div class="pipe-arrow">↙ &nbsp;&nbsp; ↘</div>
+          <div class="pipe-split">
+            <div class="pipe-step"><span class="dot dot-success"></span> Recover</div>
+            <div class="pipe-step"><span class="dot dot-warning"></span> Escalate</div>
+          </div>
+          <div class="pipe-arrow">↓</div>
+          <div class="pipe-step">Audit</div>
+        </div>
+      </div>
+    </div>
+
+    <section id="value">
+      <div class="section-head">
+        <h2>Turn failed payments into recovered revenue.</h2>
+        <p>
+          Failed payments create recoverable revenue loss. Revoco identifies at-risk
+          payment events, evaluates recovery opportunities, chooses an appropriate
+          intervention, and records the result.
+        </p>
+      </div>
+    </section>
+
+    <section id="how-it-works">
+      <div class="section-head">
+        <h2>How Revoco works</h2>
+      </div>
+      <div class="stages-flow">
+        <span class="flow-step">01 Detect</span><span class="flow-arrow">→</span>
+        <span class="flow-step">02 Diagnose</span><span class="flow-arrow">→</span>
+        <span class="flow-step">03 Decide</span><span class="flow-arrow">→</span>
+        <span class="flow-step flow-step-gate">04 Policy Gate</span><span class="flow-arrow">→</span>
+        <span class="flow-step">05 Act</span><span class="flow-arrow">→</span>
+        <span class="flow-step">06 Audit</span>
+      </div>
+      <div class="stage-grid">
+        <div class="card card-sm">
+          <div class="stage-num">01</div>
+          <h3>Detect</h3>
+          <p>Identify payment failures and at-risk events.</p>
+        </div>
+        <div class="card card-sm">
+          <div class="stage-num">02</div>
+          <h3>Diagnose</h3>
+          <p>Understand the failure context.</p>
+        </div>
+        <div class="card card-sm">
+          <div class="stage-num">03</div>
+          <h3>Decide</h3>
+          <p>The recovery agent evaluates the available context.</p>
+        </div>
+        <div class="card card-sm">
+          <div class="stage-num">04</div>
+          <h3>Policy Gate</h3>
+          <p>A deterministic safety layer validates the proposed action.</p>
+        </div>
+        <div class="card card-sm">
+          <div class="stage-num">05</div>
+          <h3>Act</h3>
+          <p>Recover the payment or escalate to the merchant.</p>
+        </div>
+        <div class="card card-sm">
+          <div class="stage-num">06</div>
+          <h3>Audit</h3>
+          <p>Record the decision and outcome.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="merchant-control">
+      <div class="section-head">
+        <h2>AI decides. Policy controls.</h2>
+        <p>
+          The recovery agent can recommend an action, but execution is constrained by
+          the deterministic Policy Gate. Cases that require human judgment can be
+          escalated to the merchant.
+        </p>
+      </div>
+      <div class="control-card">
+        <div class="pipe">
+          <div class="pipe-step">Recovery Agent</div>
+          <div class="pipe-arrow">↓</div>
+          <div class="pipe-step">Recommendation</div>
+          <div class="pipe-arrow">↓</div>
+          <div class="pipe-step gate">Policy Gate</div>
+          <div class="pipe-arrow">↙ &nbsp;&nbsp; ↘</div>
+          <div class="control-branches">
+            <div class="control-branch">
+              <div class="pipe-step"><span class="dot dot-success"></span> Recover</div>
+            </div>
+            <div class="control-branch">
+              <div class="pipe-step"><span class="dot dot-warning"></span> Escalate</div>
+              <div class="pipe-arrow">↓</div>
+              <div class="pipe-step input">Merchant</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="control-note">
+        Escalated transactions wait for a one-click merchant decision — approve creates
+        the recovery payment link, dismiss closes the case. Both are audited.
+      </p>
+    </section>
+
+    <section id="preview">
+      <div class="section-head">
+        <h2>The merchant dashboard</h2>
+      </div>
+      <div class="preview-shell" role="img" aria-label="Static preview of the Revoco merchant dashboard">
+        <div class="preview-bar">revoco · Merchant Dashboard · Live Execution <span class="provenance-tag provenance-real">REAL</span></div>
+        <div class="preview-body">
+          <div class="preview-col">
+            <h4>Live Execution</h4>
+            <div class="preview-row">
+              <span class="badge badge-success">ACTION</span> transient_low_amount
+              <span class="amount">₹2,999 · recovered</span>
+            </div>
+            <div class="preview-row">
+              <span class="badge badge-warning">ESCALATE</span> low_recoverability
+              <span class="amount">₹799 · awaiting review</span>
+            </div>
+            <div class="preview-row">
+              <span class="badge badge-danger">STOP</span> attempts_exhausted
+              <span class="amount">₹1,999</span>
+            </div>
+            <h4 style="margin-top: var(--space-4);">Merchant Action Required</h4>
+            <div class="preview-row">
+              <span class="badge badge-warning">1</span> escalated transaction awaiting review
+            </div>
+          </div>
+          <div class="preview-col">
+            <h4>System Status</h4>
+            <div class="preview-row"><span class="status-dot status-dot-active"></span> Razorpay Test Mode · Connected</div>
+            <div class="preview-row"><span class="status-dot status-dot-active"></span> Policy Gate · Active</div>
+            <div class="preview-row"><span class="status-dot status-dot-active"></span> Audit Logging · Active</div>
+            <div class="preview-row"><span class="status-dot status-dot-disabled"></span> LLM Execution Authority · Disabled</div>
+            <h4 style="margin-top: var(--space-4);">Recovery performance</h4>
+            <div class="preview-metric"><span class="metric-value">₹25.8L</span><span class="metric-label">agent net (simulated)</span></div>
+            <div class="preview-metric"><span class="metric-value">73%</span><span class="metric-label">agent targeting precision</span></div>
+            <div class="preview-metric"><span class="metric-value">₹13,497</span><span class="metric-label">recovered live · Test Mode</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="preview-caption">Static preview from the Revoco Test Mode dataset — sign in for the live dashboard.</div>
+    </section>
+
+    <section id="developers">
+      <div class="section-head">
+        <h2>Built for developers.</h2>
+        <p>Integrate payment recovery into your existing payment workflow.</p>
+      </div>
+      <div class="dev-cta">
+        <a class="btn btn-primary" href="/developers">View developer docs</a>
+        <a class="btn btn-secondary" href="https://github.com/Ayushi-Singh-1405/razor_recover" target="_blank" rel="noopener">View GitHub</a>
+      </div>
+    </section>
+
+    <section id="resources">
+      <div class="section-head">
+        <h2>Learn more</h2>
+      </div>
+      <div class="link-grid">
+        <div class="card card-sm">
+          <h3><a href="#how-it-works">How Revoco Works</a></h3>
+          <p>The six-stage recovery pipeline, end to end.</p>
+        </div>
+        <div class="card card-sm">
+          <h3><a href="/developers">Developers</a></h3>
+          <p>API reference, decision schema, and policy gates.</p>
+        </div>
+        <div class="card card-sm">
+          <h3><a href="/security">Data &amp; Security</a></h3>
+          <p>Auth model, execution safety, and evaluation integrity.</p>
+        </div>
+        <div class="card card-sm">
+          <h3><a href="/resources">Resources</a></h3>
+          <p>Normative policies, evaluation reports, and the repository.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-cols">
+        <div>
+          <div class="wordmark">revoco</div>
+        </div>
+        <div class="footer-links">
+          <a href="#product">Product</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="/developers">Developers</a>
+          <a href="/resources">Resources</a>
+          <a href="/security">Data &amp; Security</a>
+          <a href="https://github.com/Ayushi-Singh-1405/razor_recover" target="_blank" rel="noopener">GitHub</a>
+        </div>
+        <div class="footer-links">
+          <a href="/login">Log in</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        revoco · Payment Recovery Infrastructure · Razorpay Test Mode
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
