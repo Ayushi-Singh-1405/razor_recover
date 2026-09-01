@@ -1,0 +1,120 @@
+================================================================
+  Nemotron Model Sample Report — Agent Evaluation (Day 3-4)
+================================================================
+
+Model:            nvidia/nemotron-3-super-120b-a12b:free (via OpenRouter)
+Sample:           15 of 662 at-risk events (first 15 by created_at,
+                  seed-42 dataset) + separate 5-event dry run
+Labeling era:     pre amount-above-cap relabel (execution-layer labeling;
+                  agent decision space unchanged)
+Source:           evaluation/netmoron.md (run outputs). The agent_decisions
+                  rows from these runs were later overwritten by the full
+                  662-event run — this file and the run logs are the record.
+Companion:        5-event dry run artifact: tests/gate_b_dry_run_5.md
+CAVEAT:           n=15 and n=5 — directional only. Do not mix these numbers
+                  with the 662-event openrouter/free report
+                  (day3_experiment_result.txt).
+
+================================================================
+  1. Five-Event Dry Run (tests/gate_b_dry_run_5.md)
+================================================================
+
+  Aligned with ground truth : 5/5
+  Actions                   : recover_now x3, send_payment_link x1, stop x1
+  Bad interventions         : 0
+  Potential net recovered   : Rs 36,359.61
+  Confidence range          : 0.71 - 0.81
+
+================================================================
+  2. Fifteen-Event Sample — Decision Paths
+================================================================
+
+  ai_decision       11
+  pre_filtered       3   (high_value x2, attempts_exhausted x1)
+  gated_override     1   (llm_call_failed — truncated JSON)
+
+  LLM reached: 12 of 15. Pure AI decisions: 11. LLM format failures:
+  1/12 (8.3%).
+
+================================================================
+  3. Fifteen-Event Sample — Outcomes vs Ground Truth
+     (ground truth is evaluation-only; never shown to the agent)
+================================================================
+
+  Aligned with ground truth : 11/15
+  Misses                    : 4 — all missed recoverable revenue
+                              (zero false positives)
+  Recovery attempts         : 8 — all on ground-truth recoverable
+                              events (precision 100% at n=8)
+  Bad interventions         : 0   (all 3 non-recoverable events withheld)
+  Recovered (simulated)     : Rs 69,753.88
+  Missed recoverable        : Rs 46,492.97
+                              (event 3: Rs 15,575.48 — escalated
+                               event 6: Rs 19,074.83 — high-value pre-filter
+                               event 8: Rs  9,799.11 — llm_call_failed
+                               event 15: Rs  2,043.55 — stopped)
+
+  Miss detail:
+    - Event 3: AI chose escalate_to_merchant on a recoverable abandoned
+      checkout (Rs 15,575 vs Rs 799 AOV, 2-day tenure) — defensible
+      caution, but a miss under the benchmark convention.
+    - Event 6: high-value pre-filter (Rs 19,075 > Rs 18,000) — policy,
+      not model error.
+    - Event 8: LLM returned logically good reasoning but truncated JSON
+      (missing closing brace) -> gated fallback to escalate. Format
+      robustness, not reasoning quality.
+    - Event 15: AI chose stop on a recoverable abandoned checkout
+      (zero successes, 2 failures) — conservative prior on new customers.
+
+================================================================
+  4. Reasoning Quality (11 pure-AI decisions)
+================================================================
+
+  Every pure-AI decision cites concrete enriched signals: checkout
+  duration (all 11), AOV/amount deviation (events 3, 4, 9, 10, 12, 13,
+  15), prior-attempt recency (2, 4), success history (8-11 context).
+  None rely on failure_reason alone. Closest to failure-reason-led:
+  events 5 and 13 ("otp_timeout is transient") — both still anchor on
+  engagement signals.
+
+================================================================
+  5. Same-Events Comparison: nemotron vs openrouter/free
+     (identical 15 events; router decisions from the 662-event run)
+================================================================
+
+  Decision-identical events : 8/15
+  Alignment (same events)   : nemotron 11/15  |  router 14/15
+  Attempted recovery        : nemotron 8  |  router 11 (all recoverable)
+  Bad interventions         : nemotron 0  |  router 0
+  Net recovered (simulated) : nemotron Rs 69,753.88
+                            | router   Rs 97,172.02  (+Rs 27,418.14)
+
+  Decisive differences (all three favor the router):
+    - Event  8: router produced a valid send_payment_link where
+      nemotron's JSON truncated -> +Rs 9,799.11
+    - Event  3: router attempted (send_payment_link) where nemotron
+      escalated -> +Rs 15,575.48
+    - Event 15: router attempted where nemotron stopped -> +Rs 2,043.55
+  Events 2, 5, 12, 13 differ only in flavor (recover_now vs
+  send_payment_link) — both aligned on all four.
+
+  NOTE: router decisions come from openrouter/free (auto-selected free
+  models, per-request model unattributed); nemotron decisions are a
+  single pinned model. n=15 per side — directional only.
+
+================================================================
+  6. Takeaways for Gate B
+================================================================
+
+  - Nemotron's reasoning quality is strong (no failure_reason-only
+    decisions; correct withholding of all non-recoverable events).
+  - Its cost is conservatism: 3 missed recoverable events, plus one
+    format failure that discarded good reasoning.
+  - On identical events, the auto-router out-earned nemotron by
+    Rs 27.4K — driven by format robustness and less conservative
+    escalation, not by better per-attempt precision (both 0 bad
+    interventions; router 11/11 vs nemotron 8/8 on recoverable
+    attempts).
+  - Full-run economics (662 events, openrouter/free) remain the
+    authoritative comparison: day3_experiment_result.txt.
+================================================================
