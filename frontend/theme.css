@@ -29,10 +29,11 @@
   --color-neutral-bg:    #F3F4F6;
 
   /* Type */
-  --font-family: -apple-system, BlinkMacSystemFont, "Inter", "Geist", "Segoe UI", Roboto, sans-serif;
+  --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   /* Brand wordmark uses the technical mono stack — deliberately distinct
      from UI typography. No webfont dependency. */
-  --font-family-brand: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --font-family-brand: "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Wordmark: lowercase, tight tracking, weight 650 — the Stripe-style treatment */
   --font-size-xs:   12px;
   --font-size-sm:   13px;
   --font-size-base: 14px;
@@ -119,9 +120,10 @@ a:hover { text-decoration: underline; }
 .wordmark {
   font-family: var(--font-family-brand);
   font-size: var(--font-size-lg);
-  font-weight: 600;
+  font-weight: 650;
   color: var(--color-text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  text-transform: lowercase;
 }
 .wordmark .accent { color: var(--color-accent); }
 .wordmark-label {
