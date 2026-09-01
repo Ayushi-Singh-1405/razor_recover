@@ -1,8 +1,10 @@
 /* ============================================================
-   RecoverAI — Shared Design System
-   Restrained fintech aesthetic (Razorpay/Stripe-adjacent).
-   No gradients, no glow, no glassmorphism, no drop shadows.
-   Flat color, 1px borders, confident whitespace, system fonts.
+   Revoco — V2 Shared Design System
+   Restrained fintech/payment-infrastructure aesthetic
+   (Stripe/Razorpay-adjacent): white + near-black + ocean blue.
+   No glow, no glassmorphism, no neon, no 3D, no pill-shaped
+   containers. Flat color, 1px borders, confident whitespace,
+   system fonts. Subtle shadows only where useful.
    ============================================================ */
 
 :root {
@@ -27,7 +29,10 @@
   --color-neutral-bg:    #F3F4F6;
 
   /* Type */
-  --font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-family: -apple-system, BlinkMacSystemFont, "Inter", "Geist", "Segoe UI", Roboto, sans-serif;
+  /* Brand wordmark uses the technical mono stack — deliberately distinct
+     from UI typography. No webfont dependency. */
+  --font-family-brand: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
   --font-size-xs:   12px;
   --font-size-sm:   13px;
   --font-size-base: 14px;
@@ -44,15 +49,20 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-8: 48px;
+  --space-10: 64px;
+  --space-12: 96px;
 
-  /* Radius — modest, not pill-shaped */
+  /* Radius — modest, not pill-shaped (badges are the only pill) */
   --radius-sm: 4px;
+  --radius-btn: 7px;
   --radius-md: 8px;
   --radius-lg: 12px;
 
-  /* Border, never shadow, for elevation */
+  /* Border for elevation; shadows only ever this subtle */
   --border-default: 1px solid var(--color-border);
   --border-strong:  1px solid var(--color-border-strong);
+  --shadow-card: 0 1px 2px rgba(12, 36, 81, 0.05);
+  --color-accent-tint: rgba(51, 149, 255, 0.08);
 }
 
 /* ---- Reset / base ---- */
@@ -95,20 +105,31 @@ a:hover { text-decoration: underline; }
   border: var(--border-default);
   border-radius: var(--radius-md);
   padding: var(--space-5);
-  /* explicitly no box-shadow, no blur, no gradient */
+  box-shadow: var(--shadow-card); /* subtle elevation only — never a glow */
 }
 
 .card-sm { padding: var(--space-4); }
 .card-lg { padding: var(--space-6); }
 
-/* ---- Wordmark (replaces the gradient icon badge) ---- */
+/* ---- Wordmark / brand ----
+   lowercase "revoco" in the technical mono stack, near-black.
+   Pair with a section label in ocean blue:
+       <div class="wordmark">revoco<span class="wordmark-label">Developers</span></div>
+   or with the trailing accent dot: revoco<span class="accent">.</span> */
 .wordmark {
+  font-family: var(--font-family-brand);
   font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--color-text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 .wordmark .accent { color: var(--color-accent); }
+.wordmark-label {
+  font-family: var(--font-family);
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-left: var(--space-2);
+}
 
 /* ---- Typography ---- */
 h1, h2, h3 {
@@ -151,7 +172,7 @@ p {
   justify-content: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-btn);
   font-size: var(--font-size-base);
   font-weight: 500;
   cursor: pointer;
@@ -168,6 +189,13 @@ p {
   color: #FFFFFF;
 }
 .btn-primary:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
+
+.btn-secondary {
+  background: var(--color-bg);
+  border: var(--border-default);
+  color: var(--color-text-primary);
+}
+.btn-secondary:hover { background: var(--color-bg-subtle); }
 
 .btn-danger-outline {
   border-color: var(--color-danger);
@@ -189,7 +217,7 @@ p {
   align-items: center;
   gap: var(--space-1);
   padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
+  border-radius: 999px; /* badges communicate state — the only pill */
   font-size: var(--font-size-xs);
   font-weight: 600;
 }
@@ -278,3 +306,163 @@ input:focus, select:focus {
 .mt-2 { margin-top: var(--space-2); }
 .mt-4 { margin-top: var(--space-4); }
 .mb-4 { margin-bottom: var(--space-4); }
+
+/* ---- Top navigation (V2) ---- */
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg);
+  border-bottom: var(--border-default);
+  flex-wrap: wrap;
+}
+.topnav .nav-brand {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+.topnav .nav-brand .accent { color: var(--color-accent); }
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  flex: 1;
+}
+.nav-link {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.nav-link:hover { color: var(--color-text-primary); background: var(--color-bg-subtle); }
+.nav-link.active {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.nav-right { display: flex; align-items: center; gap: var(--space-3); }
+.nav-right .nav-email { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+
+/* ============================================================
+   V2 additions — sidebar navigation, landing background,
+   icons, responsive baseline. Establishes the language; pages
+   adopt these in their own redesign steps.
+   ============================================================ */
+
+/* ---- Line-style icon base (stroke, single color, no decoration) ---- */
+.icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* ---- Sidebar (for upcoming workspace layout) ----
+   Group labels: OVERVIEW / WORKSPACE / DEVELOPMENT / RESOURCES.
+   Active link: subtle ocean-blue tint — no black pill, no glow. */
+.sidebar {
+  width: 240px;
+  min-height: 100vh;
+  background: var(--color-bg);
+  border-right: var(--border-default);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  position: sticky;
+  top: 0;
+}
+.sidebar-brand { margin-bottom: var(--space-5); }
+.sidebar-group { margin-top: var(--space-4); }
+.sidebar-group:first-child { margin-top: 0; }
+.sidebar-group-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  padding: 0 var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.sidebar-link:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+}
+.sidebar-link.active {
+  background: var(--color-accent-tint);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.sidebar-divider {
+  border-top: var(--border-default);
+  margin: var(--space-3) 0;
+}
+
+/* ---- Landing page background: static, subtle, blue-only ---- */
+.landing-bg {
+  background:
+    radial-gradient(900px 420px at 85% -10%, rgba(51, 149, 255, 0.07), transparent 60%),
+    radial-gradient(700px 380px at -10% 10%, rgba(51, 149, 255, 0.05), transparent 55%),
+    var(--color-bg);
+}
+
+/* ---- Responsive baseline ---- */
+@media (max-width: 900px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+    min-height: 0;
+    border-right: none;
+    border-bottom: var(--border-default);
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .sidebar-group { margin-top: 0; display: flex; align-items: center; gap: var(--space-1); }
+  .sidebar-group-label { margin: 0 var(--space-2) 0 0; }
+  .sidebar-divider { border-top: none; border-left: var(--border-default); height: 20px; margin: 0 var(--space-2); }
+}
+
+@media (max-width: 640px) {
+  .container { padding: var(--space-4) var(--space-3); }
+  .page-center { padding: var(--space-4); }
+  .card { padding: var(--space-4); }
+  .card-lg { padding: var(--space-5); }
+}
+
+/* ---- Pipeline flow diagram (shared primitive) ----
+   Steps are bordered chips; connectors are ocean blue. */
+.flow-step {
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  padding: 3px 10px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+.flow-step-gate {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.flow-arrow { color: var(--color-accent); font-weight: 600; }
