@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics — Revoco</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <style>
+    .container { max-width: 860px; }
+    .section-header { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+    .section-header h2, .section-header h3 { margin: 0; }
+
+    .detection-stats {
+      display: flex; flex-wrap: wrap;
+      gap: var(--space-2) var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-bg-subtle);
+      border: var(--border-default);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+    }
+    .detection-stats strong { color: var(--color-text-primary); }
+
+    .eval-question {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-primary);
+      font-weight: 600;
+      margin: var(--space-3) 0;
+    }
+    .agent-eval table td:first-child { color: var(--color-text-secondary); }
+
+    .verdict-callout {
+      margin-top: var(--space-4);
+      padding: var(--space-3) var(--space-4);
+      background: rgba(51, 149, 255, 0.06);
+      border: var(--border-default);
+      border-left: 3px solid var(--color-accent);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+      line-height: 1.55;
+      color: var(--color-text-primary);
+    }
+    .attribution { margin-top: var(--space-4); }
+    .status { min-height: 18px; }
+    [id="analytics-error"] { margin-top: var(--space-3); }
+  </style>
+</head>
+<body>
+  <div id="nav-mount"></div>
+  <div class="container">
+    <div class="section-header" style="margin: var(--space-5) 0 var(--space-4);">
+      <h1 style="margin: 0;">Analytics</h1>
+      <span class="provenance-tag provenance-simulated">SIMULATED</span>
+    </div>
+
+    <div class="card mb-4">
+      <div class="section-header">
+        <h3>Detection Benchmark (Day 2)</h3>
+      </div>
+      <p class="text-secondary" style="margin-bottom: var(--space-3);">
+        Deterministic detector output over the synthetic seed-42 dataset.
+      </p>
+      <div class="detection-stats" id="detection-stats">Loading…</div>
+    </div>
+
+    <div class="card card-lg mb-4 agent-eval">
+      <div class="section-header">
+        <h3>Agent Evaluation</h3>
+        <span class="provenance-tag provenance-simulated">SIMULATED</span>
+        <span class="text-muted text-xs">· Day 3</span>
+      </div>
+      <p class="eval-question">How do we know the agent's decisions are any good?</p>
+
+      <table>
+        <thead>
+          <tr><th></th><th>Recovery Agent</th><th>Deterministic Benchmark</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Candidate decisions</td><td id="eval-agent-candidates">…</td><td id="eval-bench-candidates">…</td></tr>
+          <tr><td>Successful recoveries</td><td id="eval-agent-recovered">…</td><td id="eval-bench-recovered">…</td></tr>
+          <tr><td>₹ Recovered</td><td id="eval-agent-recovered-l">…</td><td id="eval-bench-recovered-l">…</td></tr>
+          <tr><td>Bad interventions</td><td id="eval-agent-bad">…</td><td id="eval-bench-bad">…</td></tr>
+          <tr><td>Net ₹ recovered</td><td id="eval-agent-net">…</td><td id="eval-bench-net">…</td></tr>
+          <tr><td>Targeting precision</td><td id="eval-agent-precision">…</td><td id="eval-bench-precision">…</td></tr>
+        </tbody>
+      </table>
+
+      <div class="verdict-callout" id="verdict-callout">…</div>
+      <p class="text-muted text-xs attribution" id="attribution"></p>
+    </div>
+
+    <div class="status" id="status"></div>
+    <div class="alert alert-danger hidden" id="analytics-error"></div>
+  </div>
+
+  <script type="module" src="/static/js/analytics.js"></script>
+</body>
+</html>
