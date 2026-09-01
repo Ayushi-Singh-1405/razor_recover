@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit — Revoco</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <style>
+    .container { max-width: 960px; }
+    .section-header { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+    .section-header h1, .section-header h2 { margin: 0; }
+
+    .filters {
+      display: flex; gap: var(--space-3); flex-wrap: wrap;
+      margin: var(--space-4) 0;
+    }
+    .filters label {
+      display: flex; flex-direction: column; gap: var(--space-1);
+      font-size: var(--font-size-xs); color: var(--color-text-muted);
+      flex: 1; min-width: 200px;
+    }
+    .audit-details {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      word-break: break-all;
+    }
+    .status { min-height: 18px; }
+    #audit-error { margin-top: var(--space-3); }
+  </style>
+</head>
+<body>
+  <div id="nav-mount"></div>
+  <div class="container">
+    <div class="section-header" style="margin: var(--space-5) 0 var(--space-4);">
+      <h1 style="margin: 0;">Audit Trail</h1>
+      <span class="provenance-tag provenance-real">REAL</span>
+    </div>
+
+    <div class="card card-sm mb-4">
+      <p class="text-secondary" style="margin: 0;">
+        Every execution-policy decision, action, escalation, and webhook-confirmed
+        recovery — chronological, filterable, immutable. Entries come from the same
+        audit trail the Live Execution page surfaces per transaction.
+      </p>
+    </div>
+
+    <div class="card card-lg">
+      <div class="filters">
+        <label>Scenario
+          <select id="filter-scenario"></select>
+        </label>
+        <label>Event type
+          <select id="filter-event"></select>
+        </label>
+      </div>
+      <div class="text-muted text-xs" id="audit-count" style="margin-bottom: var(--space-3);"></div>
+      <table>
+        <thead>
+          <tr><th>Time</th><th>Scenario</th><th>Event</th><th>Details</th><th>Amount</th></tr>
+        </thead>
+        <tbody id="audit-table"></tbody>
+      </table>
+    </div>
+
+    <div class="status" id="status"></div>
+    <div class="alert alert-danger hidden" id="audit-error"></div>
+  </div>
+
+  <script type="module" src="/static/js/audit.js"></script>
+</body>
+</html>
