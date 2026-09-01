@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Developers — Revoco</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <style>
+    .container { max-width: 960px; }
+    .section-header { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
+    .section-header h1 { margin: 0; }
+    h2 { margin: var(--space-6) 0 var(--space-3); }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: var(--font-size-xs);
+    }
+    pre {
+      background: var(--color-bg-subtle);
+      border: var(--border-default);
+      border-radius: var(--radius-sm);
+      padding: var(--space-3) var(--space-4);
+      overflow-x: auto;
+      color: var(--color-text-primary);
+    }
+    .footer {
+      margin-top: var(--space-8); padding: var(--space-5) 0;
+      border-top: var(--border-default);
+      text-align: center; font-size: var(--font-size-xs); color: var(--color-text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div id="nav-mount"></div>
+  <div class="container">
+    <div class="section-header" style="margin-top: var(--space-5);">
+      <h1>Developers</h1>
+    </div>
+    <p class="text-secondary">
+      Revoco is a FastAPI backend with a server-rendered static frontend. All state
+      lives in PostgreSQL (Neon); all merchant traffic authenticates via an httpOnly
+      JWT session cookie.
+    </p>
+
+    <h2>Authentication</h2>
+    <p class="text-secondary">
+      Google OAuth issues a session; the session is an HS256 JWT (merchant id + email,
+      24h expiry) stored in the httpOnly <code>recoverai_session</code> cookie. Protected
+      routes take the <code>get_current_merchant</code> dependency and return 401 without
+      a valid session.
+    </p>
+
+    <h2>Endpoints</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>GET</td><td>/health</td><td>—</td><td>Service health check</td></tr>
+        <tr><td>GET</td><td>/auth/google/login</td><td>—</td><td>Redirect to Google consent screen</td></tr>
+        <tr><td>GET</td><td>/auth/google/callback</td><td>—</td><td>Code exchange, merchant upsert, session cookie</td></tr>
+        <tr><td>GET</td><td>/auth/me</td><td>session</td><td>Current merchant info (401 otherwise)</td></tr>
+        <tr><td>GET</td><td>/auth/logout</td><td>—</td><td>Clears the session cookie</td></tr>
+        <tr><td>POST</td><td>/transactions/create-test-order</td><td>—</td><td>Create a Razorpay Test Mode order (optional amount_paise body)</td></tr>
+        <tr><td>POST</td><td>/transactions/{id}/create-payment-link</td><td>—</td><td>Create a Razorpay payment link for a transaction</td></tr>
+        <tr><td>POST</td><td>/webhook</td><td>signature</td><td>Razorpay webhook receiver (verified, idempotent)</td></tr>
+        <tr><td>GET</td><td>/audit/{transaction_id}</td><td>—</td><td>Audit trail for a transaction</td></tr>
+        <tr><td>GET</td><td>/dashboard/summary</td><td>session</td><td>Detection + real execution + agent evaluation payload</td></tr>
+        <tr><td>POST</td><td>/dashboard/escalations/{id}/approve</td><td>session</td><td>Merchant approves an escalated transaction (creates payment link)</td></tr>
+        <tr><td>POST</td><td>/dashboard/escalations/{id}/dismiss</td><td>session</td><td>Merchant dismisses an escalated transaction (audit only)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Decision schema</h2>
+    <p class="text-secondary">
+      The recovery agent returns exactly this structure (validated against a JSON schema
+      before anything else happens):
+    </p>
+    <pre>{
+  "diagnosis": "string — root cause of the failure/abandonment",
+  "recovery_probability": 0.0-1.0,
+  "recommended_action": "recover_now | send_payment_link | wait_and_retry
+                       | escalate_to_merchant | stop",
+  "reason": "string — reasoning citing enriched context",
+  "confidence": 0.0-1.0
+}</pre>
+
+    <h2>Decision paths &amp; override reasons</h2>
+    <table>
+      <thead><tr><th>decision_path</th><th>Meaning</th><th>override_reason values</th></tr></thead>
+      <tbody>
+        <tr><td>ai_decision</td><td>LLM decision passed all gates</td><td>NULL</td></tr>
+        <tr><td>pre_filtered</td><td>Deterministic gate decided before the LLM</td><td>attempts_exhausted · high_value_requires_human_review</td></tr>
+        <tr><td>gated_override</td><td>LLM output overridden after the call</td><td>low_confidence · invalid_action_returned · llm_call_failed</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Execution policy gates</h2>
+    <table>
+      <thead><tr><th>Gate</th><th>Rule</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Attempts cap</td><td>previous_recovery_attempts &gt;= 3</td><td>STOP (hard, no override)</td></tr>
+        <tr><td>Already recovered</td><td>transaction status == recovered</td><td>STOP (hard, no override)</td></tr>
+        <tr><td>Amount ceiling</td><td>amount_paise &gt; 500000 (Rs 5,000)</td><td>ESCALATE to human review</td></tr>
+        <tr><td>Action whitelist</td><td>action not in the 5 permitted actions</td><td>ESCALATE</td></tr>
+        <tr><td>Confidence floor</td><td>confidence &lt; 0.5</td><td>ESCALATE</td></tr>
+        <tr><td>Volume cap</td><td>MAX_REAL_RECOVERY_ACTIONS per run (default 10)</td><td>excess transactions CAPPED</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Summary payload shape</h2>
+    <p class="text-secondary">
+      <code>GET /dashboard/summary</code> returns three blocks — <code>detection</code>
+      (simulated benchmark counts), <code>real_execution</code> (scenarios, decisions,
+      per-transaction audit chains, webhook-confirmed recovery), and
+      <code>agent_evaluation</code> (agent vs deterministic benchmark + verdict).
+      Field-level details in the repository README and
+      <code>backend/GROUND_TRUTH_POLICY.md</code>.
+    </p>
+
+    <h2>Run it locally</h2>
+    <pre>cd backend
+../venv/bin/alembic upgrade head
+../venv/bin/uvicorn main:app --reload
+# open http://localhost:8000/</pre>
+
+    <div class="footer">Revoco · see <a href="/security">Security</a> for the trust model and <a href="/resources">Resources</a> for policies and reports</div>
+  </div>
+
+  <script type="module">
+    import { renderNav } from "/static/js/navigation.js";
+    renderNav("developers", null);
+  </script>
+</body>
+</html>
