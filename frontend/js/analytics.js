@@ -4,8 +4,8 @@
 import { getMe, getSummary } from "./api.js";
 import { setMe, setSummary } from "./state.js";
 import { renderNav } from "./navigation.js";
-import { esc, fmtLakhs, fmtINR, fmtPct } from "./utils.js";
-import { lineChart, barChart, donutChart, compareChart, stackedBarChart, CHART_COLORS } from "./charts.js";
+import { esc, fmtINRWhole, fmtLakhs, fmtINR, fmtPct } from "./utils.js";
+import { lineChart, barChart, donutChart, compareChart, CHART_COLORS } from "./charts.js";
 
 const OUTCOME_COLORS = { action: CHART_COLORS.SUCCESS, stop: CHART_COLORS.WARNING, escalate: CHART_COLORS.ACCENT_HOVER };
 
@@ -45,6 +45,24 @@ function render(summary) {
   renderOutcomes(summary.real_execution);
   renderAgentPerformance(summary.agent_evaluation);
   renderExposure(summary.real_execution);
+  renderAgentEvaluation(summary.agent_evaluation);
+}
+
+function renderAgentEvaluation(ae) {
+  const set = (id, value) => { document.getElementById(id).textContent = value; };
+  set("eval-agent-candidates", String(ae.agent.candidate_decisions));
+  set("eval-bench-candidates", String(ae.benchmark.candidate_decisions));
+  set("eval-agent-recovered", String(ae.agent.successful_recoveries));
+  set("eval-bench-recovered", String(ae.benchmark.successful_recoveries));
+  set("eval-agent-recovered-l", fmtINRWhole(ae.agent.recovered_paise));
+  set("eval-bench-recovered-l", fmtINRWhole(ae.benchmark.recovered_paise));
+  set("eval-agent-bad", String(ae.agent.bad_interventions));
+  set("eval-bench-bad", String(ae.benchmark.bad_interventions));
+  set("eval-agent-net", fmtINRWhole(ae.agent.net_recovered_paise));
+  set("eval-bench-net", fmtINRWhole(ae.benchmark.net_recovered_paise));
+  set("eval-agent-precision", fmtPct(ae.agent.targeting_precision));
+  set("eval-bench-precision", fmtPct(ae.benchmark.targeting_precision));
+  set("verdict-callout", ae.verdict_text);
 }
 
 function renderTiles(summary) {
@@ -186,19 +204,22 @@ function renderAgentPerformance(ae) {
 function renderExposure(re) {
   const buckets = { action: 0, stop: 0, escalate: 0 };
   for (const t of re.transactions) buckets[t.decision] = (buckets[t.decision] || 0) + t.amount_paise;
-  const max = Math.max(1, ...Object.values(buckets));
-  const order = [
-    { label: "Action", value: buckets.action, color: CHART_COLORS.SUCCESS },
-    { label: "Escalate", value: buckets.escalate, color: CHART_COLORS.ACCENT },
-    { label: "Stop", value: buckets.stop, color: CHART_COLORS.MUTED },
+
+  const rows = [
+    { label: "Action", color: CHART_COLORS.SUCCESS, amount: buckets.action },
+    { label: "Escalate", color: CHART_COLORS.ACCENT, amount: buckets.escalate },
+    { label: "Stop", color: CHART_COLORS.MUTED, amount: buckets.stop },
   ];
-  document.getElementById("chart-methods").innerHTML = stackedBarChart({
-    groups: order.map(o => ({
-      label: `${o.label} · ${fmtINR(o.value)}`,
-      parts: [{ value: (o.value / max) * 100, color: o.color, label: o.label }],
-    })),
-    legend: null,
-  });
+  const max = Math.max(1, ...rows.map(r => r.amount));
+
+  document.getElementById("chart-methods").innerHTML = rows.map(r => `
+    <div class="exposure-row">
+      <span class="exposure-label">${esc(r.label)}</span>
+      <div class="chart-bar-track">
+        <div class="chart-bar" style="width:${((r.amount / max) * 100).toFixed(1)}%;background:${r.color}"></div>
+      </div>
+      <span class="exposure-value">${fmtINRWhole(r.amount)}</span>
+    </div>`).join("");
 }
 
 load();

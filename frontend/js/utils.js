@@ -10,6 +10,9 @@ export const fmtLakhs = paise => "₹" + (paise / 100 / 100000).toFixed(1) + "L"
 
 export const fmtPct = p => Math.round(p * 100) + "%";
 
+export const fmtINRWhole = paise =>
+  "₹" + Math.round(paise / 100).toLocaleString("en-IN");
+
 export const fmtTime = iso =>
   new Date(iso).toLocaleString("en-IN",
     { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });

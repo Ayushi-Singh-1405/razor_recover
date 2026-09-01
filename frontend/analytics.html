@@ -94,6 +94,23 @@
     .chart-seg-empty { width: 100%; height: 100%; background: var(--color-bg-subtle); border-radius: var(--radius-sm); }
     .chart-stack-value { width: 30px; text-align: right; font-size: var(--font-size-xs); color: var(--color-text-secondary); font-weight: 600; }
 
+    /* Amount exposure rows */
+    .exposure-row {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-2) 0;
+    }
+    .exposure-label {
+      width: 84px; flex-shrink: 0;
+      font-size: var(--font-size-sm); color: var(--color-text-secondary);
+    }
+    .exposure-row .chart-bar-track { flex: 1; }
+    .exposure-value {
+      width: 92px; flex-shrink: 0; text-align: right;
+      font-size: var(--font-size-sm); font-weight: 600;
+      color: var(--color-text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
     /* Agent evaluation detail table (below charts) */
     .agent-eval table td:first-child { color: var(--color-text-secondary); }
     .attribution { margin-top: var(--space-4); }
