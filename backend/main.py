@@ -37,7 +37,32 @@ FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "f
 
 @app.get("/", include_in_schema=False)
 def root():
-    return RedirectResponse("/login")
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+
+@app.get("/analytics", include_in_schema=False)
+def analytics_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "analytics.html"))
+
+
+@app.get("/audit", include_in_schema=False)
+def audit_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "audit.html"))
+
+
+@app.get("/developers", include_in_schema=False)
+def developers_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "developers.html"))
+
+
+@app.get("/resources", include_in_schema=False)
+def resources_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "resources.html"))
+
+
+@app.get("/security", include_in_schema=False)
+def security_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "security.html"))
 
 
 @app.get("/login", include_in_schema=False)
