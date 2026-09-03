@@ -19,12 +19,11 @@ from models import Transaction, AuditLog, WebhookEvent, SyntheticEvent, Detectio
 from config import DATABASE_URL, razorpay_client, RAZORPAY_WEBHOOK_SECRET
 from auth import router as auth_router, get_current_merchant
 from dashboard_actions import router as dashboard_actions_router
-from simulate_outcomes import (
-    build_agent_pairs,
-    build_baseline_pairs,
-    simulate,
-    RECOVERY_ACTIONS,
-)
+
+_summary_cache = {"payload": None, "ts": 0.0}
+import time as _time
+from simulate_outcomes import RECOVERY_ACTIONS
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -86,18 +85,58 @@ def dashboard_summary(
     tables/reports verified on Day 2-4 — nothing is recomputed beyond
     counting and summing. Real-execution numbers come from the audit trail.
     """
+    # Cache HIT: repeat loads within the TTL window return the cached
+    # payload instantly (auth is still enforced by the dependency above).
+    global _summary_cache
+    if (_summary_cache["payload"] is not None
+            and _time.time() - _summary_cache["ts"] <= 30):
+        return _summary_cache["payload"]
+
     # ---- Detection (simulated benchmark, Day 2) --------------------------
-    total_events = db.query(func.count(SyntheticEvent.id)).scalar()
-    at_risk_row = (
-        db.query(func.count(DetectionResult.id), func.sum(SyntheticEvent.amount_paise))
-        .join(SyntheticEvent, DetectionResult.synthetic_event_id == SyntheticEvent.id)
-        .filter(DetectionResult.at_risk.is_(True))
-        .one()
-    )
+    # One round trip for every scalar aggregate (detection + baseline +
+    # agent) — each query is a cross-region round trip to Neon.
+    AGG_SQL = """
+        SELECT
+          (SELECT count(*) FROM synthetic_events) AS total_events,
+          (SELECT count(*) FROM detection_results WHERE at_risk) AS at_risk,
+          (SELECT coalesce(sum(se.amount_paise), 0)
+             FROM detection_results dr
+             JOIN synthetic_events se ON se.id = dr.synthetic_event_id
+            WHERE dr.at_risk) AS revenue_at_risk_paise,
+          (SELECT count(*) FROM detection_results WHERE at_risk) AS bench_candidates,
+          (SELECT count(*) FROM detection_results dr
+             JOIN synthetic_events se ON se.id = dr.synthetic_event_id
+            WHERE dr.at_risk AND se.ground_truth_recoverable) AS bench_recoveries,
+          (SELECT coalesce(sum(se.ground_truth_recovered_amount), 0)
+             FROM detection_results dr
+             JOIN synthetic_events se ON se.id = dr.synthetic_event_id
+            WHERE dr.at_risk AND se.ground_truth_recoverable) AS bench_recovered_paise,
+          (SELECT count(*) FROM detection_results dr
+             JOIN synthetic_events se ON se.id = dr.synthetic_event_id
+            WHERE dr.at_risk AND NOT se.ground_truth_recoverable) AS bench_bad,
+          (SELECT count(*) FROM agent_decisions ad
+             JOIN synthetic_events se ON se.id = ad.synthetic_event_id
+            WHERE ad.recommended_action IN ('recover_now','send_payment_link','wait_and_retry')) AS agent_candidates,
+          (SELECT count(*) FROM agent_decisions ad
+             JOIN synthetic_events se ON se.id = ad.synthetic_event_id
+            WHERE ad.recommended_action IN ('recover_now','send_payment_link','wait_and_retry')
+              AND se.ground_truth_recoverable) AS agent_recoveries,
+          (SELECT coalesce(sum(se.ground_truth_recovered_amount), 0)
+             FROM agent_decisions ad
+             JOIN synthetic_events se ON se.id = ad.synthetic_event_id
+            WHERE ad.recommended_action IN ('recover_now','send_payment_link','wait_and_retry')
+              AND se.ground_truth_recoverable) AS agent_recovered_paise,
+          (SELECT count(*) FROM agent_decisions ad
+             JOIN synthetic_events se ON se.id = ad.synthetic_event_id
+            WHERE ad.recommended_action IN ('recover_now','send_payment_link','wait_and_retry')
+              AND NOT se.ground_truth_recoverable) AS agent_bad
+    """
+    agg = db.execute(text(AGG_SQL)).mappings().one()
+
     detection = {
-        "total_events": total_events,
-        "at_risk": at_risk_row[0],
-        "revenue_at_risk_paise": int(at_risk_row[1] or 0),
+        "total_events": int(agg["total_events"] or 0),
+        "at_risk": int(agg["at_risk"] or 0),
+        "revenue_at_risk_paise": int(agg["revenue_at_risk_paise"] or 0),
         "provenance": "simulated",
     }
 
@@ -198,22 +237,39 @@ def dashboard_summary(
     }
 
     # ---- Agent evaluation (Day 3 experiment) -----------------------------
-    # Reuse the exact simulate() + pair builders behind the written reports;
-    # aggregating the same tables the reports were generated from.
-    conn = psycopg2.connect(DATABASE_URL)
-    try:
-        baseline_pairs = build_baseline_pairs(conn)
-        agent_pairs = build_agent_pairs(conn)
-    finally:
-        conn.close()
+    # Same accounting as simulate() (SS20.7/SS20.8), computed with aggregate
+    # queries over the same tables so the request avoids pulling ~1,700 rows
+    # and a fresh cross-region connection. dashboard_summary_check.py
+    # cross-verifies these numbers against the written Day 3 reports.
+    def stats_from_row(row):
+        recovered_paise = int(row["recovered_paise"] or 0)
+        bad = int(row["bad"] or 0)
+        return {
+            "candidate_decisions": int(row["candidates"] or 0),
+            "successful_recoveries": int(row["recoveries"] or 0),
+            "total_recovered_paise": recovered_paise,
+            "bad_interventions": bad,
+            "total_penalty_paise": bad * 20000,  # SS20.8: Rs 200 flat
+            "net_recovered_paise": recovered_paise - bad * 20000,
+        }
 
-    def targeting_precision(pairs) -> float:
-        attempted = [(ev, a) for ev, a in pairs if a in RECOVERY_ACTIONS]
-        correct = sum(1 for ev, _ in attempted if ev["ground_truth_recoverable"])
-        return round(correct / len(attempted), 4) if attempted else 0.0
+    def targeting_precision(stats) -> float:
+        attempted = stats["candidate_decisions"]
+        correct = stats["successful_recoveries"]
+        return round(correct / attempted, 4) if attempted else 0.0
 
-    baseline_stats = simulate(baseline_pairs)
-    agent_stats = simulate(agent_pairs)
+    baseline_stats = stats_from_row({
+        "candidates": agg["bench_candidates"],
+        "recoveries": agg["bench_recoveries"],
+        "recovered_paise": agg["bench_recovered_paise"],
+        "bad": agg["bench_bad"],
+    })
+    agent_stats = stats_from_row({
+        "candidates": agg["agent_candidates"],
+        "recoveries": agg["agent_recoveries"],
+        "recovered_paise": agg["agent_recovered_paise"],
+        "bad": agg["agent_bad"],
+    })
 
     def block(stats, precision):
         return {
@@ -227,8 +283,8 @@ def dashboard_summary(
 
     agent_evaluation = {
         "label": "Agent vs Deterministic Benchmark",
-        "agent": block(agent_stats, targeting_precision(agent_pairs)),
-        "benchmark": block(baseline_stats, targeting_precision(baseline_pairs)),
+        "agent": block(agent_stats, targeting_precision(agent_stats)),
+        "benchmark": block(baseline_stats, targeting_precision(baseline_stats)),
         "verdict": "benchmark_retained_for_execution",
         "verdict_text": (
             "The recovery agent showed higher per-attempt targeting precision "
@@ -240,11 +296,19 @@ def dashboard_summary(
         "provenance": "simulated",
     }
 
-    return {
+    payload = {
         "detection": detection,
         "real_execution": real_execution,
         "agent_evaluation": agent_evaluation,
     }
+
+    # Short TTL cache: repeated dashboard/analytics loads re-use the payload
+    # for 30s instead of re-paying cross-region query round trips. Execution
+    # runs and merchant actions take effect within one TTL window.
+    if _summary_cache["payload"] is None or _time.time() - _summary_cache["ts"] > 30:
+        _summary_cache["payload"] = payload
+        _summary_cache["ts"] = _time.time()
+    return _summary_cache["payload"]
 
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
