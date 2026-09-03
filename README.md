@@ -1,94 +1,111 @@
-# RecoverAI
+# Revoco
 
-AI-powered revenue recovery for failed Razorpay transactions.
+Agentic payment recovery for failed Razorpay checkouts.
 
-## Problem
+Revoco detects at-risk payments, reasons about why they failed, and recovers
+the ones worth recovering — while a deterministic policy gate keeps every
+action safe, bounded, and fully audited.
 
-Incomplete or failed payments cost businesses significant revenue. When a user abandons a payment link or a transaction fails silently, there's no automated system to detect, follow up, and recover that revenue.
+**AI reasons. Policy decides. Execution is controlled.**
 
-## Solution
-
-RecoverAI monitors Razorpay webhooks in real-time, detects failed/abandoned payments, and orchestrates recovery through intelligent payment link re-sends, escalating to human intervention when needed.
-
-## Architecture
+## How it works
 
 ```
-Razorpay Webhook → /webhook (signature verified, idempotent)
-                          ↓
-                   webhook_events table (deduplication)
-                          ↓
-                   Transaction status update (→ recovered)
-                          ↓
-                   Audit log entry (webhook_verified + revenue_recovered)
+Payment Failure
+      ↓
+Detect → Diagnose → Decide
+      ↓
+Policy Gate (deterministic, authoritative)
+      ↓
+Recover / Escalate to merchant
+      ↓
+Audit
 ```
 
-## Tech Stack
+- **Detection** — a deterministic detector flags at-risk payments from observed
+  signals only (status, failure reason, recovery-attempt history).
+- **Diagnosis & decision** — a recovery agent receives richer permitted context
+  (customer history, order-value deviation, checkout behavior) and recommends
+  one of five bounded actions.
+- **Policy gate** — attempt caps, amount ceilings, action whitelists, and
+  confidence floors are enforced by code that cannot be overridden.
+- **Evaluation** — the agent is graded in rupees recovered against a
+  pre-registered deterministic benchmark on identical events. Ground truth is
+  never visible to the agent or the detector.
 
-- **Backend:** FastAPI + SQLAlchemy + PostgreSQL (Neon)
-- **Payments:** Razorpay SDK (orders, payment links, webhooks)
-- **Migrations:** Alembic
-- **Deployment:** (TBD)
+## Pages
 
-## Project Structure
+| Route | Description |
+|---|---|
+| `/` | Public product landing page |
+| `/login` | Google sign-in |
+| `/dashboard` | Live execution (real Test Mode recovery runs), System Status |
+| `/analytics` | Detection benchmark + agent-vs-benchmark evaluation with charts |
+| `/audit` | Filterable chronological audit trail |
+| `/developers` | API reference, decision schema, policy gates |
+| `/security` | Auth model, execution safety, evaluation integrity |
+| `/resources` | Policies, evaluation reports, repository |
+
+## API
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/health` | — | Health check |
+| GET | `/auth/google/login` | — | Redirect to Google consent |
+| GET | `/auth/google/callback` | — | OAuth callback → session cookie |
+| GET | `/auth/me` | session | Current merchant (401 otherwise) |
+| GET | `/auth/logout` | — | Clears the session |
+| POST | `/transactions/create-test-order` | — | Razorpay Test Mode order |
+| POST | `/transactions/{id}/create-payment-link` | — | Razorpay payment link |
+| POST | `/webhook` | signature | Razorpay webhook (verified, idempotent) |
+| GET | `/audit/{transaction_id}` | — | Audit trail for a transaction |
+| GET | `/dashboard/summary` | session | Detection + execution + evaluation payload |
+| POST | `/dashboard/escalations/{id}/approve` | session | Merchant approves an escalation |
+| POST | `/dashboard/escalations/{id}/dismiss` | session | Merchant dismisses an escalation |
+
+## Project structure
 
 ```
-RecoverAI/
-├── backend/           FastAPI application, DB models, migrations
-├── frontend/          Dashboard UI (planned)
-├── docs/              Architecture, specs, workflow, Razorpay docs
-├── tests/             Smoke and integration tests
-├── evaluation/        Datasets, metrics, failure analysis
-├── pitch/             Buildathon pitch deck
-├── demo/              Demo video
-├── CHANGELOG.md       Release history
-├── FAILURE_LOG.md     Bug and misconfiguration tracker
-└── LICENSE            MIT
+frontend/            Static pages (vanilla JS ES modules) + theme.css
+backend/
+  main.py            FastAPI app (pages, auth wiring, summary, webhooks)
+  auth.py            Google OAuth + JWT sessions
+  dashboard_actions.py  Escalation approve/dismiss
+  run_agent.py       Recovery agent runner (policy gates, retries, resume)
+  llm_provider.py    OpenRouter structured-decision client
+  generate_synthetic_data.py   Seeded benchmark dataset + ground truth
+  detect_at_risk.py  Baseline detector (limited observable signals)
+  evaluate.py / simulate_outcomes.py / execute_recovery.py
+  GROUND_TRUTH_POLICY.md / EXECUTION_POLICY.md
+  alembic/           migrations 001-006
+  reports/           evaluation reports
+tests/               smoke, durability, summary-verification suites
+docs/                architecture, specs, workflow plans
 ```
 
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Health check |
-| `POST` | `/transactions/create-test-order` | Create test Razorpay order (₹4,999) |
-| `POST` | `/transactions/{id}/create-payment-link` | Generate payment link for a transaction |
-| `POST` | `/webhook` | Razorpay webhook receiver (verified, idempotent) |
-| `GET` | `/audit/{transaction_id}` | Audit trail for a transaction |
-
-## Setup
+## Run locally
 
 ```bash
-# 1. Clone and enter project
-git clone <repo-url> && cd RecoverAI
-
-# 2. Backend setup
-cd backend
 python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Configure environment
-cp .env.example .env
-# Edit .env with your Razorpay keys and DATABASE_URL
-
-# 4. Run migrations
-alembic upgrade head
-
-# 5. Start server
-uvicorn main:app --reload --port 8000
-
-# 6. Run tests (in separate terminal)
-cd ../tests
-python3 test_phase0.py
+pip install -r backend/requirements.txt
+cp .env.example .env            # add Razorpay, Neon, Google, JWT secrets
+cd backend && ../venv/bin/alembic upgrade head
+../venv/bin/uvicorn main:app --reload
+# open http://localhost:8000/
 ```
 
-## Environment Variables
+Environment variables: see `.env.example` (Razorpay Test Mode keys, Neon
+PostgreSQL URL, Google OAuth client, `JWT_SECRET`, execution-policy caps).
 
-| Variable | Description |
-|----------|-------------|
-| `RAZORPAY_KEY_ID` | Razorpay API key ID |
-| `RAZORPAY_KEY_SECRET` | Razorpay API key secret |
-| `RAZORPAY_WEBHOOK_SECRET` | Webhook signature verification secret |
-| `DATABASE_URL` | PostgreSQL connection string |
+## Documentation
+
+- [GROUND_TRUTH_POLICY.md](backend/GROUND_TRUTH_POLICY.md) — benchmark rules,
+  information separation, simulation economics
+- [EXECUTION_POLICY.md](backend/EXECUTION_POLICY.md) — what the execution layer
+  may do with real money
+- [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) — system architecture
+- [CHANGELOG.md](CHANGELOG.md) — release history
+- [LEARNING_LOG.md](LEARNING_LOG.md) — failures and what they changed
 
 ## License
 
