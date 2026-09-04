@@ -8,6 +8,37 @@ action safe, bounded, and fully audited.
 
 **AI reasons. Policy decides. Execution is controlled.**
 
+## Results — 662-event benchmark (simulated)
+
+We ran the full recovery agent and the deterministic benchmark over the same
+662 at-risk events under identical §20.7/§20.8 economics — and report the
+outcome honestly, including where the agent loses:
+
+| System | Candidates | Recoveries | ₹ Recovered | Bad interventions | Net ₹ |
+|---|---:|---:|---:|---:|---:|
+| Deterministic benchmark | 662 | 438 | ₹42.9L | 224 | **₹42.4L** |
+| AI recovery agent | 408 | 298 | ₹25.8L | 110 | **₹25.5L** |
+
+```
+Net ₹ recovered — 662 at-risk events, identical simulation economics:
+
+Deterministic benchmark  ████████████████████████████████████  ₹4,244,118
+AI recovery agent        ██████████████████████                ₹2,554,773
+```
+
+**The honest read:** the agent is more precise per attempt — 73% targeting
+precision vs 66%, with 110 bad interventions vs 224 — but far more
+conservative. It attempted recovery on only 408 of 662 events, leaving
+~₹16.9L of recoverable revenue untouched. Under the current economics the
+**deterministic benchmark is retained for real execution**; the agent's
+reasoning is evaluated, not yet execution-authorized.
+
+Every decision, gate override, escalation, and webhook-confirmed recovery is
+auditable — that trail, not a perfect number, is the product.
+
+Full breakdown: [agent_performance_result.md](backend/reports/agent_performance_result.md) ·
+live charts: `/analytics` · audit trail: `/audit`
+
 ## How it works
 
 ```
