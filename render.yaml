@@ -1,4 +1,4 @@
-# Render Blueprint — Revoco (free tier)
+# Render Blueprint — Repechage (free tier)
 # Deploys the FastAPI app with the frontend served from the same origin.
 # Secrets use sync: false — Render prompts for their values at deploy time
 # and never stores them in this repository.
@@ -12,7 +12,7 @@
 
 services:
   - type: web
-    name: revoco
+    name: repechage
     runtime: python
     plan: free
     rootDir: backend
