@@ -52,6 +52,21 @@ function rowHtml(t) {
       </div>
       ${escalationActions}
       <div class="audit-panel hidden">
+        ${(t.audit_chain || []).filter(e => e.event === "agent_recommendation").slice(-1).map(e => {
+          const d = e.details || {};
+          return `
+          <div class="agent-decision">
+            <div class="agent-decision-head">
+              <strong>Agent decision</strong>
+              <span class="badge badge-neutral">${esc(String(d.recommended_action || "").replace(/_/g, " "))}</span>
+              <span class="text-muted text-xs">probability ${esc(String(d.recovery_probability ?? "—"))} · confidence ${esc(String(d.confidence ?? "—"))}${d.model ? ` · ${esc(d.model)}` : ""}</span>
+            </div>
+            <div class="agent-decision-body">
+              <div><strong>Diagnosis:</strong> ${esc(d.diagnosis || "—")}</div>
+              <div><strong>Reasoning:</strong> ${esc(d.reason || "—")}</div>
+            </div>
+          </div>`;
+        }).join("") || ""}
         ${correctionCallout}
         ${groupChain(t.audit_chain).map(g => `
           <div class="audit-event">

@@ -109,6 +109,23 @@
     }
     .audit-toggle:hover { text-decoration: underline; }
 
+    .agent-decision {
+      background: var(--color-bg);
+      border: var(--border-default);
+      border-left: 3px solid var(--color-accent);
+      border-radius: var(--radius-sm);
+      padding: var(--space-3) var(--space-4);
+      margin-bottom: var(--space-3);
+    }
+    .agent-decision-head {
+      display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+      margin-bottom: var(--space-2);
+    }
+    .agent-decision-head strong { font-size: var(--font-size-sm); }
+    .agent-decision-body { font-size: var(--font-size-sm); color: var(--color-text-secondary); line-height: 1.55; }
+    .agent-decision-body div + div { margin-top: var(--space-1); }
+    .agent-decision-body strong { color: var(--color-text-primary); }
+
     .audit-panel {
       margin-top: var(--space-3);
       background: var(--color-bg-subtle);
