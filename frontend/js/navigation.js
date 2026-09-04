@@ -25,7 +25,7 @@ export function renderNav(activeKey, me = null) {
 
   mount.innerHTML = `
     <nav class="topnav">
-      <a class="nav-brand" href="/dashboard">REVOCO<span class="accent">.</span></a>
+      <a class="nav-brand" href="/dashboard">repechage<span class="accent">.</span></a>
       <div class="nav-links">${links}</div>
       <div class="nav-right">${right}</div>
     </nav>`;
