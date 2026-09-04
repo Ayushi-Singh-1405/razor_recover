@@ -266,10 +266,16 @@ def _call_provider(
         raise LLMAPIError(f"Failed to parse {provider_name} response wrapper as JSON: {e}") from e
 
     choices = resp_json.get("choices", [])
-    if not choices or not choices[0].get("message", {}).get("content"):
-        raise LLMAPIError(f"{provider_name} returned empty choices in response: {resp_json}")
-
-    raw_content = choices[0]["message"]["content"]
+    message = choices[0].get("message", {}) if choices else {}
+    # Some free-router models return their final answer in message.reasoning
+    # with content=None — fall back to it before giving up.
+    raw_content = message.get("content") or message.get("reasoning")
+    if not choices or not raw_content:
+        raise LLMAPIError(
+            f"{provider_name} returned no usable content in response: "
+            f"{str(resp_json)[:300]}"
+        )
+    raw_content = str(raw_content)
     cleaned_content = _clean_json_text(raw_content)
 
     try:
