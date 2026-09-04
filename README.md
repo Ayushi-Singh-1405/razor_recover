@@ -1,8 +1,8 @@
-# Revoco
+# Repechage
 
 Agentic payment recovery for failed Razorpay checkouts.
 
-Revoco detects at-risk payments, reasons about why they failed, and recovers
+Repechage detects at-risk payments, reasons about why they failed, and recovers
 the ones worth recovering — while a deterministic policy gate keeps every
 action safe, bounded, and fully audited.
 
