@@ -1,0 +1,48 @@
+# Agent Performance Result
+
+*Compares the recovery agent against the deterministic benchmark on the full 662-event run under identical §20.7/§20.8 simulation economics.*
+
+**Total at-risk events:** 662
+**Agent decisions recorded:** 662
+
+## Side-by-Side Comparison (GROUND_TRUTH_POLICY §20.7 / §20.8)
+
+| System | Candidate decisions | Successful recoveries | ₹ recovered | Bad interventions | Net ₹ |
+|---|---:|---:|---:|---:|---:|
+| Deterministic baseline | 662 | 438 | ₹4,288,918 | 224 | ₹4,244,118 |
+| AI recovery agent | 408 | 298 | ₹2,576,773 | 110 | ₹2,554,773 |
+
+**Net ₹ uplift (agent - baseline):** -₹1,689,345
+
+## Agent Decision Path Breakdown
+
+| Decision path | Count | Share |
+|---|---:|---:|
+| ai_decision | 553 | 83.5% |
+| pre_filtered | 94 | 14.2% |
+| gated_override | 15 | 2.3% |
+
+## Gated Override Reasons
+
+| Override reason | Count |
+|---|---:|
+| llm_call_failed | 11 |
+| low_confidence | 4 |
+
+> Note: `llm_call_failed` = infrastructure/provider failure;
+> `low_confidence` / `invalid_action_returned` = model quality issue.
+
+## Attempted-Recovery Targeting Quality (agent)
+
+| Targeting | Count |
+|---|---:|
+| Attempted on ground-truth recoverable (correct) | 298 |
+| Attempted on non-recoverable (bad intervention) | 110 |
+
+### By action
+
+| Action | On recoverable | On non-recoverable |
+|---|---:|---:|
+| recover_now | 126 | 15 |
+| send_payment_link | 161 | 91 |
+| wait_and_retry | 11 | 4 |
