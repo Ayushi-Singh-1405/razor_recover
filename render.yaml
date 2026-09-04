@@ -1,0 +1,55 @@
+# Render Blueprint — Revoco (free tier)
+# Deploys the FastAPI app with the frontend served from the same origin.
+# Secrets use sync: false — Render prompts for their values at deploy time
+# and never stores them in this repository.
+#
+# After the first deploy:
+#   1. Set APP_BASE_URL and FRONTEND_URL to the service URL
+#      (https://<service-name>.onrender.com)
+#   2. Add https://<service-name>.onrender.com/auth/google/callback
+#      as an authorized redirect URI in Google Cloud Console
+#   3. (Optional) point UptimeRobot at /health to avoid free-tier cold starts
+
+services:
+  - type: web
+    name: revoco
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && alembic upgrade head
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.4"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openrouter/free
+      - key: APP_BASE_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: LIVE_EXECUTION_ENABLED
+        value: "false"
+      - key: MAX_REAL_RECOVERY_ACTIONS
+        value: "10"
+      - key: MAX_AUTOMATED_AMOUNT_PAISE
+        value: "500000"
+      - key: MAX_ATTEMPTS
+        value: "3"

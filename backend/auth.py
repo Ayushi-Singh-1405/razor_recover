@@ -169,12 +169,14 @@ def google_callback(code: str = Query(...), db: Session = Depends(get_db)):
 
     # 4. Issue the signed session cookie and redirect to the dashboard.
     response = RedirectResponse(f"{FRONTEND_URL}{DASHBOARD_PATH}", status_code=303)
-    # secure=True should be enabled when serving over HTTPS in production.
+    # Secure flag when the deployment is HTTPS-based (Railway/Render/etc.);
+    # localhost HTTP development keeps it disabled so login still works.
     response.set_cookie(
         SESSION_COOKIE_NAME,
         _issue_session_jwt(merchant),
         httponly=True,
         samesite="lax",
+        secure=APP_BASE_URL.startswith("https://"),
         max_age=JWT_EXPIRY_HOURS * 3600,
     )
     return response
