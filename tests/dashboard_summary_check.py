@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify GET /dashboard/summary numbers match the Day 2-4 source reports
+"""Verify GET /dashboard/summary numbers match the source reports
 exactly. Parses the report .txt files (cross-check only) and compares
 against the route output. Read-only: no DB writes.
 
@@ -43,13 +43,13 @@ def rupees(text):
 
 
 # ---- Source report values (parsed) ------------------------------------------
-day2 = read("day2_baseline.txt")
+day2 = read("baseline.txt")
 d2_total = int(re.search(r"Total events evaluated:\s+(\d+)", day2).group(1))
 d2_at_risk_rev = rupees(re.search(r"Revenue \(at_risk=True\):\s+₹([\d,]+)", day2).group(1))
 d2_at_risk_count = int(re.search(r"True Positives\s+\(TP\):\s+(\d+)", day2).group(1)) + \
     int(re.search(r"False Positives \(FP\):\s+(\d+)", day2).group(1))
 
-day3sim = read("day3_baseline_simulation.txt")
+day3sim = read("baseline_simulation.txt")
 bench = {
     "candidate_decisions": int(re.search(r"Candidate decisions:\s+(\d+)", day3sim).group(1)),
     "successful_recoveries": int(re.search(r"Successful recoveries:\s+(\d+)", day3sim).group(1)),
@@ -58,7 +58,7 @@ bench = {
     "net_recovered_paise": rupees(re.search(r"Net ₹ recovered:\s+₹([\d,]+)", day3sim).group(1)),
 }
 
-day3exp = read("day3_experiment_result.txt")
+day3exp = read("agent_performance_result.txt")
 m_bench = re.search(r"\|\s*Deterministic baseline\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*₹([\d,]+)\s*\|\s*(\d+)\s*\|\s*₹([\d,]+)\s*\|", day3exp)
 m_agent = re.search(r"\|\s*AI recovery agent\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*₹([\d,]+)\s*\|\s*(\d+)\s*\|\s*₹([\d,]+)\s*\|", day3exp)
 
@@ -70,7 +70,7 @@ try:
 finally:
     db.close()
 
-# ---- 1. Detection vs day2_baseline.txt ---------------------------------------
+# ---- 1. Detection vs baseline.txt ---------------------------------------
 # Reports display whole rupees (floor division); endpoint returns exact
 # paise, so compare on the report's own convention.
 def matches_report_rupees(paise, report_rupees):
@@ -123,10 +123,10 @@ for field in exp_agent:
 for field in bench:
     if field in RUPEE_FIELDS:
         ok = matches_report_rupees(ae["benchmark"][field], bench[field] // 100)
-        check(f"benchmark.{field} == day3_baseline_simulation.txt (within floor rounding)", ok,
+        check(f"benchmark.{field} == baseline_simulation.txt (within floor rounding)", ok,
               f"{ae['benchmark'][field]} vs {bench[field]}")
     else:
-        check(f"benchmark.{field} == day3_baseline_simulation.txt", ae["benchmark"][field] == bench[field], f"{ae['benchmark'][field]} vs {bench[field]}")
+        check(f"benchmark.{field} == baseline_simulation.txt", ae["benchmark"][field] == bench[field], f"{ae['benchmark'][field]} vs {bench[field]}")
 
 check("verdict label", ae["verdict"] == "benchmark_retained_for_execution")
 check("provenance simulated", ae["provenance"] == "simulated")

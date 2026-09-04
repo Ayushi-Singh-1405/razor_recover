@@ -167,7 +167,7 @@ Every stage below is verified in code.
 | Eligibility | `backend/run_agent.py` (SQL JOIN) | `agent_decisions` only ever receives `at_risk = TRUE` events. |
 | Agent + Policy | `backend/run_agent.py` | See §5. |
 | Simulation | `backend/simulate_outcomes.py` | `simulate()` is decision-maker-agnostic (takes `(event, action)` pairs); `main()` currently wires **baseline only** (`at_risk → "recover_now"`, else `"no_action"`). |
-| Evaluation | `backend/evaluate.py`, `backend/reports/` | Writes `day2_baseline.txt`, `day3_baseline_simulation.txt`. |
+| Evaluation | `backend/evaluate.py`, `backend/reports/` | Writes `baseline.txt`, `baseline_simulation.txt` (`agent_performance_result.txt` also in reports/). |
 
 **Current dataset reference numbers** (from `backend/reports/`, seed 42, 1000 events): 662 at-risk, 438 ground-truth recoverable; baseline Precision 0.66 / Recall 1.00 / F1 0.80; baseline simulation net **₹4,244,118** (₹4,288,918 recovered − ₹44,800 penalties for 224 bad interventions). These are benchmark figures for the synthetic development dataset, not real-world Razorpay distribution claims.
 
@@ -521,7 +521,7 @@ Attempt-recovery actions = `{recover_now, send_payment_link, wait_and_retry}`; `
 
 ### Sample-size discipline
 
-The **5-event and 15-event agent runs are development/evaluation samples only** (the latter documented in `tests/gate_b_dry_run_5.md`). The full benchmark contains **~662 at-risk events**; no sample-run result in this document or the repo constitutes project-wide performance. The full run is `python backend/run_agent.py` (no `--limit`), and the baseline-vs-AI verdict report (`backend/reports/day3_experiment_result.md`) is **PLANNED but not yet written**.
+The **5-event and 15-event agent runs are development/evaluation samples only** (the latter documented in `tests/gate_b_dry_run_5.md`). The full benchmark contains **~662 at-risk events**; no sample-run result in this document or the repo constitutes project-wide performance. The full run is `python backend/run_agent.py` (no `--limit`), and the baseline-vs-AI verdict report is written to `backend/reports/agent_performance_result.md`.
 
 ---
 
@@ -659,7 +659,7 @@ razor_recover/
 │   ├── simulate_outcomes.py        §20.7/§20.8 simulation (baseline wiring)
 │   ├── evaluate.py                 classification + revenue report
 │   ├── GROUND_TRUTH_POLICY.md      normative benchmark policy
-│   └── reports/                    day2_baseline.txt, day3_baseline_simulation.txt
+│   └── reports/                    baseline.txt, baseline_simulation.txt, agent_performance_result.txt
 ├── docs/                           this file; specs, workflow, decisions
 ├── tests/                          test_phase0.py, gate_b_dry_run_5.md
 ├── frontend/ demo/ pitch/          empty (planned)

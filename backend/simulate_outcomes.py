@@ -189,7 +189,7 @@ def fetch_agent_breakdowns(conn):
 def format_report(stats, total_events, label):
     lines = []
     lines.append("=" * 50)
-    lines.append(f"  Day 3 Baseline Simulation Report")
+    lines.append(f"  Baseline Simulation Report")
     lines.append("=" * 50)
     lines.append("")
     lines.append(f"Total events:           {total_events}")
@@ -225,10 +225,10 @@ def format_comparison_report(total_at_risk, agent_decisions_count,
                              baseline_stats, agent_stats,
                              path_counts, override_reasons,
                              attempted_by_gt, attempted_by_action):
-    """Build the Day 3 experiment comparison report (baseline vs agent)."""
+    """Build the experiment comparison report (baseline vs agent)."""
     lines = []
     lines.append("=" * 64)
-    lines.append("  Day 3 Experiment Result — Baseline vs AI Recovery Agent")
+    lines.append("  Experiment Result — Baseline vs AI Recovery Agent")
     lines.append("=" * 64)
     lines.append("")
     lines.append(f"Total at-risk events:        {total_at_risk}")
@@ -322,7 +322,7 @@ def main():
     print(baseline_report)
 
     os.makedirs(REPORT_DIR, exist_ok=True)
-    baseline_path = os.path.join(REPORT_DIR, "day3_baseline_simulation.txt")
+    baseline_path = os.path.join(REPORT_DIR, "baseline_simulation.txt")
     with open(baseline_path, "w") as f:
         f.write(baseline_report + "\n")
     print(f"\nBaseline report written to {baseline_path}")
@@ -340,7 +340,7 @@ def main():
     )
     print("\n" + comparison)
 
-    result_path = os.path.join(REPORT_DIR, "day3_experiment_result.txt")
+    result_path = os.path.join(REPORT_DIR, "agent_performance_result.txt")
     with open(result_path, "w") as f:
         f.write(comparison + "\n")
     print(f"\nExperiment result written to {result_path}")

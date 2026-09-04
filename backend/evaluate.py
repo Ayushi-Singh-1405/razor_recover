@@ -11,7 +11,7 @@ import psycopg2
 
 from config import DATABASE_URL
 
-REPORT_PATH = os.path.join(os.path.dirname(__file__), "reports", "day2_baseline.txt")
+REPORT_PATH = os.path.join(os.path.dirname(__file__), "reports", "baseline.txt")
 
 
 def main():
@@ -69,7 +69,7 @@ def main():
 
     lines = []
     lines.append("=" * 50)
-    lines.append("  Day 2 Baseline Evaluation Report")
+    lines.append("  Baseline Evaluation Report")
     lines.append("=" * 50)
     lines.append("")
     lines.append(f"Total events evaluated: {total}")
