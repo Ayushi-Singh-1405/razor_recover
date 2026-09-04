@@ -1,5 +1,5 @@
 /* ============================================================
-   Revoco — V2 Shared Design System
+   Repechage — V2 Shared Design System
    Restrained fintech/payment-infrastructure aesthetic
    (Stripe/Razorpay-adjacent): white + near-black + ocean blue.
    No glow, no glassmorphism, no neon, no 3D, no pill-shaped
@@ -113,17 +113,17 @@ a:hover { text-decoration: underline; }
 .card-lg { padding: var(--space-6); }
 
 /* ---- Wordmark / brand ----
-   lowercase "revoco" in the technical mono stack, near-black.
+   lowercase "repechage" in the technical mono stack, near-black.
    Pair with a section label in ocean blue:
-       <div class="wordmark">revoco<span class="wordmark-label">Developers</span></div>
-   or with the trailing accent dot: revoco<span class="accent">.</span> */
+       <div class="wordmark">repechage<span class="wordmark-label">Developers</span></div>
+   or with the trailing accent dot: repechage<span class="accent">.</span> */
 .wordmark {
-  font-family: var(--font-family-brand);
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 600;
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
   font-size: var(--font-size-lg);
-  font-weight: 650;
   color: var(--color-text-primary);
-  letter-spacing: -0.03em;
-  text-transform: lowercase;
 }
 .wordmark .accent { color: var(--color-accent); }
 .wordmark-label {
