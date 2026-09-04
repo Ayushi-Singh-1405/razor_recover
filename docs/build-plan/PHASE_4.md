@@ -24,10 +24,10 @@ Build one screen, ordered to tell the truth in the order a judge would actually 
 
 ## Explicitly Out of Scope Today
 
-- ❌ General-purpose transaction browsing/search UI
-- ❌ Real-time polling/websockets — static or refresh-on-load is fine, this is a demo, not production
-- ❌ Building out every screen from the original master plan's Section 12 — one well-ordered screen beats eight
-- ❌ Polishing animations/transitions before the numbers on screen are correct
+-  General-purpose transaction browsing/search UI
+-  Real-time polling/websockets — static or refresh-on-load is fine, this is a demo, not production
+-  Building out every screen from the original master plan's Section 12 — one well-ordered screen beats eight
+-  Polishing animations/transitions before the numbers on screen are correct
 
 ---
 
@@ -37,12 +37,12 @@ Build one screen, ordered to tell the truth in the order a judge would actually 
 
 **Login: JWT + Google OAuth.**
 
-- [ ] **Manual setup first, before any code:** register an OAuth client in [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials → Create OAuth Client ID (type: Web application). Add your local dev callback URL (e.g. `http://localhost:8000/auth/google/callback`) to authorized redirect URIs. Note the Client ID and Client Secret. Do this first, separately from writing code — it has propagation delay and its own failure modes.
-- [ ] Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to `.env` / `.env.example`
-- [ ] Build the OAuth flow: `GET /auth/google/login` → Google consent → `GET /auth/google/callback` exchanges the code for the user's profile, creates/looks up a local `merchants` row, issues a signed JWT (httpOnly cookie or bearer token, your choice)
-- [ ] JWT verification middleware on all dashboard and escalation-action routes
-- [ ] Frontend: "Sign in with Google" landing screen → redirect to dashboard on success
-- [ ] Test the full flow with your own account once, before it's demo material
+- **Manual setup first, before any code:** register an OAuth client in [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials → Create OAuth Client ID (type: Web application). Add your local dev callback URL (e.g. `http://localhost:8000/auth/google/callback`) to authorized redirect URIs. Note the Client ID and Client Secret. Do this first, separately from writing code — it has propagation delay and its own failure modes.
+- Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to `.env` / `.env.example`
+- Build the OAuth flow: `GET /auth/google/login` → Google consent → `GET /auth/google/callback` exchanges the code for the user's profile, creates/looks up a local `merchants` row, issues a signed JWT (httpOnly cookie or bearer token, your choice)
+- JWT verification middleware on all dashboard and escalation-action routes
+- Frontend: "Sign in with Google" landing screen → redirect to dashboard on success
+- Test the full flow with your own account once, before it's demo material
 
 ---
 
@@ -55,12 +55,12 @@ Four data sources, kept distinct, but now ordered by narrative priority rather t
 3. **Detection scale** (Day 2 — 1,000 events, ₹65.4L at risk) — **framing context, brief**
 4. **Agent Evaluation / Benchmark** (Day 3 — renamed per above, demoted to the bottom) — **last, answers "how do you know it's good"**
 
-- [ ] Write one sentence per number, same discipline as before, but now also tag each with a provenance label the UI will actually show: `SIMULATED · Day 2/3` or `REAL · Razorpay Test Mode · Day 4`
-- [ ] Decide the exact section order for the page (Step 3 below reflects the recommended order — confirm you're building in this sequence, not KPIs-then-benchmark-then-execution as originally planned)
+- Write one sentence per number, same discipline as before, but now also tag each with a provenance label the UI will actually show: `SIMULATED · Day 2/3` or `REAL · Razorpay Test Mode · Day 4`
+- Decide the exact section order for the page (Step 3 below reflects the recommended order — confirm you're building in this sequence, not KPIs-then-benchmark-then-execution as originally planned)
 
 ## Step 2 — Backend: One Endpoint, Same Shape, Renamed Fields
 
-- [ ] Create `GET /dashboard/summary` in `main.py` that returns:
+- Create `GET /dashboard/summary` in `main.py` that returns:
 ```json
 {
   "detection": {
@@ -104,8 +104,8 @@ Four data sources, kept distinct, but now ordered by narrative priority rather t
 }
 ```
 Note the field rename: `ai_experiment` → `agent_evaluation`, its internal `baseline`/`ai` keys → `benchmark`/`agent`. `real_execution` gets an explicit `decision_engine` and `llm_execution_authority: false` field — this is what powers the live-section provenance tag from the guardrail above.
-- [ ] Parse from existing report files/tables, don't recompute
-- [ ] Basic test confirming numbers match source reports exactly
+- Parse from existing report files/tables, don't recompute
+- Basic test confirming numbers match source reports exactly
 
 ## Step 3 — Frontend: Five Sections, Agent-First Order
 
@@ -132,11 +132,11 @@ LLM execution authority: Not yet granted (see Agent Evaluation ↓)
 ✓ ACTION     ₹1,499   Payment Link created → Recovered
 ⛔ STOP      —        Attempt limit reached · API call: NOT EXECUTED
 ⛔ STOP      —        Already recovered · API call: NOT EXECUTED
-⚠ ESCALATE  ₹7,500   Above automated cap · API call: NOT EXECUTED
-⚠ ESCALATE  ₹999     Low recoverability · API call: NOT EXECUTED
+ ESCALATE  ₹7,500   Above automated cap · API call: NOT EXECUTED
+ ESCALATE  ₹999     Low recoverability · API call: NOT EXECUTED
 ```
-- [ ] For each row, show the decision-chain as a short sequence (reuse actual `audit_logs` timestamps), e.g.: `Detection → Policy evaluated → ACTION approved → Razorpay called → Link created → Recovered` for the two real recoveries, and `Detection → Policy evaluated → STOP → No API call → Audit logged` for the refusals
-- [ ] The "API call: NOT EXECUTED" label on every STOP/ESCALATE row is small but important — it's the proof the gate prevents action, not just logs a decision after the fact
+- For each row, show the decision-chain as a short sequence (reuse actual `audit_logs` timestamps), e.g.: `Detection → Policy evaluated → ACTION approved → Razorpay called → Link created → Recovered` for the two real recoveries, and `Detection → Policy evaluated → STOP → No API call → Audit logged` for the refusals
+- The "API call: NOT EXECUTED" label on every STOP/ESCALATE row is small but important — it's the proof the gate prevents action, not just logs a decision after the fact
 
 **Section 3 — Human Oversight (this is Section E from the original plan, now promoted, unchanged in function)**
 ```
@@ -145,7 +145,7 @@ ESCALATED
 [ APPROVE ]   [ DISMISS ]
 ```
 On Approve: real payment link created live, row updates to show `✓ MERCHANT APPROVED → Payment Link Created → triggered_by: merchant_manual_approval`. On Dismiss: row updates to show the dismissal, audited, no Razorpay call.
-- [ ] Backend/frontend work here is unchanged from the original Section E spec — only its position on the page moved up
+- Backend/frontend work here is unchanged from the original Section E spec — only its position on the page moved up
 
 **Section 4 — System Status (small, honest, easy to skim)**
 ```
@@ -154,7 +154,7 @@ On Approve: real payment link created live, row updates to show `✓ MERCHANT AP
 ● Audit Logging               Active
 ● LLM Execution Authority     Disabled — benchmark did not justify autonomous authority
 ```
-- [ ] Small widget, a few lines, no chart needed — this is the single clearest place a judge can see the honest state of the system at a glance
+- Small widget, a few lines, no chart needed — this is the single clearest place a judge can see the honest state of the system at a glance
 
 **Section 5 — Agent Evaluation (the benchmark, demoted and renamed)**
 ```
@@ -172,25 +172,25 @@ the deterministic benchmark is retained for real execution. This is a
 deliberate engineering decision based on measured evidence, not a
 limitation of the agent's reasoning."
 ```
-- [ ] This section is the last thing on the page, visually smaller/quieter than Sections 1-3
-- [ ] Keep the honest verdict text — don't let the reframing turn into spin. The agent didn't win the benchmark; say so plainly, just not as the headline.
+- This section is the last thing on the page, visually smaller/quieter than Sections 1-3
+- Keep the honest verdict text — don't let the reframing turn into spin. The agent didn't win the benchmark; say so plainly, just not as the headline.
 
 ## Step 4 — Build It
 
-- [ ] Fastest stack that gets this done today — framework choice doesn't matter to judges, correct numbers and clean ordering do
-- [ ] Build Section 2 (Live Execution) and Section 3 (Human Oversight) first — these are the actual proof points and the interactive moment. Section 1 (hero framing) and Section 4 (status widget) are quick once 2-3 exist. Section 5 (evaluation) last.
-- [ ] No fake loading states, no placeholder data
+- Fastest stack that gets this done today — framework choice doesn't matter to judges, correct numbers and clean ordering do
+- Build Section 2 (Live Execution) and Section 3 (Human Oversight) first — these are the actual proof points and the interactive moment. Section 1 (hero framing) and Section 4 (status widget) are quick once 2-3 exist. Section 5 (evaluation) last.
+- No fake loading states, no placeholder data
 
 ---
 
 ## Definition of Done — Today
 
-- [ ] `GET /dashboard/summary` returns real numbers with explicit provenance/decision-engine fields
-- [ ] Page opens on the live execution proof, not the benchmark
-- [ ] Every STOP/ESCALATE row explicitly states the Razorpay API call was not executed
-- [ ] System Status widget honestly states LLM execution authority is disabled, and why
-- [ ] Approve/Dismiss buttons are real — live payment link creation, live audit entries
-- [ ] Agent Evaluation section is present, honest, and visually secondary — not hidden, not the headline
-- [ ] A judge watching for 30-60 seconds understands: this is a working agentic system, bounded by a real policy gate, with human oversight and a rigorous (not favorable) self-evaluation
+- `GET /dashboard/summary` returns real numbers with explicit provenance/decision-engine fields
+- Page opens on the live execution proof, not the benchmark
+- Every STOP/ESCALATE row explicitly states the Razorpay API call was not executed
+- System Status widget honestly states LLM execution authority is disabled, and why
+- Approve/Dismiss buttons are real — live payment link creation, live audit entries
+- Agent Evaluation section is present, honest, and visually secondary — not hidden, not the headline
+- A judge watching for 30-60 seconds understands: this is a working agentic system, bounded by a real policy gate, with human oversight and a rigorous (not favorable) self-evaluation
 
 **Target end-of-day milestone:** *"I can open one page, lead with real proof the system works and stays bounded, click Approve on a live escalated case, and — only when asked how we know the agent's judgment is good — show the benchmark that answers that question honestly."* That ordering is the whole point of today's rework: the product comes first, the evidence for the product comes second.

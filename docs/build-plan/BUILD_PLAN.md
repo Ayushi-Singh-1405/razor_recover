@@ -4,7 +4,7 @@
 
 Build a production-style AI agent for **Track 03 — AI Revenue Recovery** that detects revenue at risk, diagnoses the likely cause, selects a bounded intervention, executes an appropriate Razorpay Test Mode action, and measures the money recovered.
 
-**Working name:** RecoverAI  
+**Working name:** RecoverAI
 **Track:** 03 — AI Revenue Recovery
 
 The Buildathon explicitly asks for a workflow that goes beyond detection: it should show measured money recovered across a batch, compliant escalation, stopping rules, and an audit trail.
@@ -750,7 +750,7 @@ Upload/run the 1,000-event batch.
 
 Show:
 
-> ₹12.4L at risk  
+> ₹12.4L at risk
 > 143 events detected
 
 ### 1:15–2:15 — Agent reasoning
@@ -802,10 +802,10 @@ Show:
 
 Show architecture and emphasize:
 
-> AI decides.  
-> Policy controls.  
-> Razorpay executes.  
-> Webhooks verify.  
+> AI decides.
+> Policy controls.
+> Razorpay executes.
+> Webhooks verify.
 > Audit trail proves what happened.
 
 ---
@@ -814,25 +814,25 @@ Show architecture and emphasize:
 
 The project is submission-ready only when all of these are true:
 
-- [ ] 1,000+ synthetic events processed
-- [ ] Held-out evaluation set exists
-- [ ] Revenue-at-risk detection has measured metrics
-- [ ] Agent diagnoses revenue-loss cases
-- [ ] Agent selects an intervention
-- [ ] Deterministic policy gate controls money actions
-- [ ] Razorpay Test Mode is integrated
-- [ ] At least one real Test Mode recovery action works
-- [ ] Webhook is received and verified
-- [ ] Duplicate webhook handling exists
-- [ ] Successful recovery updates revenue metrics
-- [ ] Failure path stops safely
-- [ ] Human escalation is demonstrated
-- [ ] Audit trail is visible
-- [ ] Dashboard is polished
-- [ ] Public GitHub repository is ready
-- [ ] Architecture diagram is ready
-- [ ] 5-minute pitch is recorded
-- [ ] README contains setup + architecture + evaluation methodology
+- 1,000+ synthetic events processed
+- Held-out evaluation set exists
+- Revenue-at-risk detection has measured metrics
+- Agent diagnoses revenue-loss cases
+- Agent selects an intervention
+- Deterministic policy gate controls money actions
+- Razorpay Test Mode is integrated
+- At least one real Test Mode recovery action works
+- Webhook is received and verified
+- Duplicate webhook handling exists
+- Successful recovery updates revenue metrics
+- Failure path stops safely
+- Human escalation is demonstrated
+- Audit trail is visible
+- Dashboard is polished
+- Public GitHub repository is ready
+- Architecture diagram is ready
+- 5-minute pitch is recorded
+- README contains setup + architecture + evaluation methodology
 
 ---
 

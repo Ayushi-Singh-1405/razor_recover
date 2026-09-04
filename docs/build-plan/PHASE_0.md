@@ -18,12 +18,12 @@ If this works tonight, Phase 0 is DONE and the rest of the week builds on a prov
 
 ## Explicitly Out of Scope Today
 
-- ❌ Dashboard / frontend
-- ❌ Recovery agent / LLM integration
-- ❌ Synthetic dataset (1,000 events)
-- ❌ LangGraph or any agent framework
-- ❌ Buying AI API credits
-- ❌ Anything beyond the 4-table schema below
+-  Dashboard / frontend
+-  Recovery agent / LLM integration
+-  Synthetic dataset (1,000 events)
+-  LangGraph or any agent framework
+-  Buying AI API credits
+-  Anything beyond the 4-table schema below
 
 Today is plumbing only.
 
@@ -85,49 +85,49 @@ CREATE TABLE audit_logs (
 ## Step-by-Step Checklist
 
 ### 1. Environment Setup
-- [ ] Create Razorpay account, switch to Test Mode
-- [ ] Generate Test API Key ID + Secret
-- [ ] Create Neon project, get connection string
-- [ ] Init FastAPI project (`main.py`, `models.py`, `db.py`)
-- [ ] Install: `fastapi`, `uvicorn`, `sqlalchemy`, `alembic`, `psycopg2-binary`, `razorpay`, `python-dotenv`
-- [ ] `.env` for `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `DATABASE_URL`
+- Create Razorpay account, switch to Test Mode
+- Generate Test API Key ID + Secret
+- Create Neon project, get connection string
+- Init FastAPI project (`main.py`, `models.py`, `db.py`)
+- Install: `fastapi`, `uvicorn`, `sqlalchemy`, `alembic`, `psycopg2-binary`, `razorpay`, `python-dotenv`
+- `.env` for `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `DATABASE_URL`
 
 ### 2. Database
-- [ ] Define SQLAlchemy models for the 4 tables above
-- [ ] Set up Alembic, run first migration against Neon
-- [ ] Confirm tables exist in Neon dashboard
+- Define SQLAlchemy models for the 4 tables above
+- Set up Alembic, run first migration against Neon
+- Confirm tables exist in Neon dashboard
 
 ### 3. Orders API
-- [ ] `POST /v1/orders` → create a ₹4,999 test order
-- [ ] Store resulting `order_id` in `transactions` table (status = `created`)
-- [ ] Confirm via `GET /v1/orders/{id}`
+- `POST /v1/orders` → create a ₹4,999 test order
+- Store resulting `order_id` in `transactions` table (status = `created`)
+- Confirm via `GET /v1/orders/{id}`
 
 ### 4. Payment Links API
-- [ ] `POST /v1/payment_links` → create a recovery link referencing the order/transaction
-- [ ] Store `payment_link_id` on the transaction row
-- [ ] Set expiry + reference_id per the plan's policy fields
+- `POST /v1/payment_links` → create a recovery link referencing the order/transaction
+- Store `payment_link_id` on the transaction row
+- Set expiry + reference_id per the plan's policy fields
 
 ### 5. Test Payment
-- [ ] Open the Payment Link, pay using Razorpay's documented test card
-- [ ] Confirm payment shows as captured in Razorpay Test Mode dashboard
+- Open the Payment Link, pay using Razorpay's documented test card
+- Confirm payment shows as captured in Razorpay Test Mode dashboard
 
 ### 6. Webhook Setup
-- [ ] Expose local FastAPI via ngrok
-- [ ] Register webhook URL in Razorpay dashboard, subscribe to `payment_link.paid` (and `payment.failed` for later)
-- [ ] Set webhook secret in `.env`
+- Expose local FastAPI via ngrok
+- Register webhook URL in Razorpay dashboard, subscribe to `payment_link.paid` (and `payment.failed` for later)
+- Set webhook secret in `.env`
 
 ### 7. Webhook Handler
-- [ ] `POST /webhook` endpoint:
-  - [ ] Verify `X-Razorpay-Signature`
-  - [ ] Parse payload, extract `event.id`
-  - [ ] Idempotency check against `webhook_events` — if seen, return 200 immediately
-  - [ ] Persist raw event to `webhook_events`
-  - [ ] Update matching `transactions.status` → `recovered`
-  - [ ] Write entries to `audit_logs`
-  - [ ] Return 200 fast (no blocking work)
+- `POST /webhook` endpoint:
+  - Verify `X-Razorpay-Signature`
+  - Parse payload, extract `event.id`
+  - Idempotency check against `webhook_events` — if seen, return 200 immediately
+  - Persist raw event to `webhook_events`
+  - Update matching `transactions.status` → `recovered`
+  - Write entries to `audit_logs`
+  - Return 200 fast (no blocking work)
 
 ### 8. Audit Trail Output
-- [ ] Simple script or endpoint (`GET /audit/{transaction_id}`) that prints the timeline:
+- Simple script or endpoint (`GET /audit/{transaction_id}`) that prints the timeline:
 ```text
 11:42:01 Order created
 11:42:04 Payment Link created
@@ -137,19 +137,19 @@ CREATE TABLE audit_logs (
 ```
 
 ### 9. Sanity Checks
-- [ ] Re-send the same webhook payload manually — confirm no duplicate processing
-- [ ] Try an invalid signature — confirm it's rejected
-- [ ] Confirm transaction status transitions are correct in the DB
+- Re-send the same webhook payload manually — confirm no duplicate processing
+- Try an invalid signature — confirm it's rejected
+- Confirm transaction status transitions are correct in the DB
 
 ---
 
 ## Definition of Done — Today
 
-- [ ] Real order created via Razorpay Test Mode API
-- [ ] Real Payment Link created and paid
-- [ ] Webhook received and signature-verified
-- [ ] Duplicate webhook delivery handled safely
-- [ ] Transaction status updates correctly in Neon
-- [ ] Full audit log visible for one transaction, end to end
+- Real order created via Razorpay Test Mode API
+- Real Payment Link created and paid
+- Webhook received and signature-verified
+- Duplicate webhook delivery handled safely
+- Transaction status updates correctly in Neon
+- Full audit log visible for one transaction, end to end
 
 If every box above is checked, Phase 0 is complete and tomorrow starts Phase 1 (synthetic dataset + detection) on a foundation that's already proven to work.

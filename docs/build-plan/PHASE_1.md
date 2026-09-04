@@ -14,11 +14,11 @@ Build a reproducible synthetic dataset of at-risk transactions, and a detector t
 
 ## Explicitly Out of Scope Today
 
-- ❌ LLM / AI reasoning of any kind
-- ❌ Recovery agent or policy engine
-- ❌ Dashboard / frontend
-- ❌ Wiring detection results back into real Razorpay actions
-- ❌ Buying any AI API credits
+-  LLM / AI reasoning of any kind
+-  Recovery agent or policy engine
+-  Dashboard / frontend
+-  Wiring detection results back into real Razorpay actions
+-  Buying any AI API credits
 
 Today is data + deterministic detection logic only.
 
@@ -37,14 +37,14 @@ At minimum, each synthetic transaction needs:
 - `customer_history` signals (e.g. `previous_successful_payments`, `previous_recovery_attempts`) — needed later for recovery-probability judgment, but generate the raw signal now
 - `created_at` timestamp (spread over a realistic window, not all identical)
 
-- [ ] Decide the exact schema/fields for a synthetic event (extend this list as needed)
-- [ ] Decide the distribution: what % should be `failed`, what % `abandoned`, what % `succeeded` (successes matter too — you need negatives, not just positives, to prove the detector isn't just flagging everything)
+- Decide the exact schema/fields for a synthetic event (extend this list as needed)
+- Decide the distribution: what % should be `failed`, what % `abandoned`, what % `succeeded` (successes matter too — you need negatives, not just positives, to prove the detector isn't just flagging everything)
 
 ### 2. Build the Generator
 
-- [ ] Write a generator script (`generate_synthetic_data.py`) that produces N events (start with 1,000) matching the schema above
-- [ ] Use `random.seed()` so the dataset is reproducible — you will want to regenerate the exact same batch multiple times while debugging the detector and, later, the agent
-- [ ] Insert generated events into a new table (see schema below) rather than directly mutating your real Phase 0 `transactions` table — keep synthetic data clearly separated from the real Test Mode transactions you already proved
+- Write a generator script (`generate_synthetic_data.py`) that produces N events (start with 1,000) matching the schema above
+- Use `random.seed()` so the dataset is reproducible — you will want to regenerate the exact same batch multiple times while debugging the detector and, later, the agent
+- Insert generated events into a new table (see schema below) rather than directly mutating your real Phase 0 `transactions` table — keep synthetic data clearly separated from the real Test Mode transactions you already proved
 
 ### 3. New Table: `synthetic_events` (or similar)
 
@@ -72,8 +72,8 @@ CREATE TABLE detection_results (
 );
 ```
 
-- [ ] Add these two tables via a new Alembic migration (don't touch Phase 0 tables/migration)
-- [ ] Run `alembic upgrade head`, confirm both tables exist in Neon
+- Add these two tables via a new Alembic migration (don't touch Phase 0 tables/migration)
+- Run `alembic upgrade head`, confirm both tables exist in Neon
 
 ### 4. Build the Detector (Deterministic — No AI)
 
@@ -86,28 +86,28 @@ Example deterministic rules to start with:
 - `status == "succeeded"` → not at risk (control group — detector must correctly NOT flag these)
 - `previous_recovery_attempts >= 2` → flag separately as "exhausted attempts" (stopping-rule candidate for later)
 
-- [ ] Write `detect_at_risk.py` that reads all `synthetic_events`, applies rules, writes results to `detection_results`
-- [ ] Print a summary when run: total events, how many flagged at-risk, breakdown by `risk_reason`
+- Write `detect_at_risk.py` that reads all `synthetic_events`, applies rules, writes results to `detection_results`
+- Print a summary when run: total events, how many flagged at-risk, breakdown by `risk_reason`
 
 ### 5. Sanity-Check the Detector
 
-- [ ] Confirm `succeeded` events are never flagged (0 false positives on the clear-cut control group)
-- [ ] Confirm every `failed` / `abandoned_checkout` event gets *some* classification (no silent skips — this bit you yesterday with the webhook event-ID bug, don't let it happen again with detection)
-- [ ] Spot-check 5-10 individual rows manually against the rules to confirm the logic matches what you intended
+- Confirm `succeeded` events are never flagged (0 false positives on the clear-cut control group)
+- Confirm every `failed` / `abandoned_checkout` event gets *some* classification (no silent skips — this bit you yesterday with the webhook event-ID bug, don't let it happen again with detection)
+- Spot-check 5-10 individual rows manually against the rules to confirm the logic matches what you intended
 
 ### 6. Basic Metrics Output
 
-- [ ] Write a small script or endpoint that reports: total events processed, count flagged at-risk, breakdown by reason, total `amount_paise` at risk (this previews the "measured money recovered" metric you'll need for the final demo)
+- Write a small script or endpoint that reports: total events processed, count flagged at-risk, breakdown by reason, total `amount_paise` at risk (this previews the "measured money recovered" metric you'll need for the final demo)
 
 ---
 
 ## Definition of Done — Today
 
-- [ ] Reproducible synthetic dataset generator (seeded, ~1,000 events)
-- [ ] Two new tables created via migration, populated with synthetic data
-- [ ] Deterministic detector correctly separates at-risk from not-at-risk events
-- [ ] Zero false positives on the `succeeded` control group
-- [ ] Summary metrics script showing total flagged + amount at risk
-- [ ] Everything kept separate from Phase 0's real Razorpay tables/data
+- Reproducible synthetic dataset generator (seeded, ~1,000 events)
+- Two new tables created via migration, populated with synthetic data
+- Deterministic detector correctly separates at-risk from not-at-risk events
+- Zero false positives on the `succeeded` control group
+- Summary metrics script showing total flagged + amount at risk
+- Everything kept separate from Phase 0's real Razorpay tables/data
 
 If every box is checked, Phase 1 is complete and Day 3 can extend the detector (edge cases, tuning) or move straight into Phase 2 (the actual recovery agent) ahead of schedule, same as Phase 0 finished ahead of plan.
