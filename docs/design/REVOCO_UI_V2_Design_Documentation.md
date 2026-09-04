@@ -1,8 +1,8 @@
 # Repechage — UI/UX Design & Version 2 Implementation Plan
 
-**Project:** Repechage  
-**Product:** Agentic Payment Recovery  
-**Version:** 2.0  
+**Project:** Repechage
+**Product:** Agentic Payment Recovery
+**Version:** 2.0
 **Status:** UI redesign specification
 
 ---
@@ -680,7 +680,7 @@ for transparency and review.
 ├──────────────────────────────────────────────────────┤
 │ 21:14      Payment #4821     Recover         ✓        │
 │ 21:11      Payment #4819     Payment link    ✓        │
-│ 20:58      Payment #4817     Escalated       ⚠        │
+│ 20:58      Payment #4817     Escalated               │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -971,31 +971,31 @@ The goal is:
 
 # 34. Version 2 Scope — MUST HAVE
 
-- [ ] New public landing page
-- [ ] Repechage branding
-- [ ] Distinctive Repechage wordmark font
-- [ ] Login / Signup in header
-- [ ] Static dashboard hero
-- [ ] Detect → Diagnose → Decide → Policy → Act → Audit flow
-- [ ] GitHub button
-- [ ] Merchant dashboard sidebar
-- [ ] Overview workspace
-- [ ] Agent Decisions
-- [ ] Merchant Escalations / Approvals
-- [ ] System Status widget
-- [ ] Analytics page
-- [ ] Real bar chart
-- [ ] Agent vs Benchmark metrics
-- [ ] Audit Trail
-- [ ] Developers
-- [ ] Resources
-- [ ] Data & Security
-- [ ] Settings
-- [ ] White/light visual system
-- [ ] Ocean blue accents
-- [ ] Reduced border radius
-- [ ] Fintech-oriented typography
-- [ ] Responsive layout
+- New public landing page
+- Repechage branding
+- Distinctive Repechage wordmark font
+- Login / Signup in header
+- Static dashboard hero
+- Detect → Diagnose → Decide → Policy → Act → Audit flow
+- GitHub button
+- Merchant dashboard sidebar
+- Overview workspace
+- Agent Decisions
+- Merchant Escalations / Approvals
+- System Status widget
+- Analytics page
+- Real bar chart
+- Agent vs Benchmark metrics
+- Audit Trail
+- Developers
+- Resources
+- Data & Security
+- Settings
+- White/light visual system
+- Ocean blue accents
+- Reduced border radius
+- Fintech-oriented typography
+- Responsive layout
 
 ---
 
@@ -1003,19 +1003,19 @@ The goal is:
 
 Do **not** build:
 
-- [ ] Video hero
-- [ ] Animated 3D objects
-- [ ] Dark AI theme
-- [ ] Neon gradients
-- [ ] Excessive glassmorphism
-- [ ] Chatbot UI
-- [ ] 3D charts
-- [ ] Fake metrics
-- [ ] Fake integrations
-- [ ] Huge documentation platform
-- [ ] Unnecessary sub-pages
-- [ ] Unnecessary backend changes
-- [ ] Unnecessary product functionality
+- Video hero
+- Animated 3D objects
+- Dark AI theme
+- Neon gradients
+- Excessive glassmorphism
+- Chatbot UI
+- 3D charts
+- Fake metrics
+- Fake integrations
+- Huge documentation platform
+- Unnecessary sub-pages
+- Unnecessary backend changes
+- Unnecessary product functionality
 
 ---
 
@@ -1031,7 +1031,6 @@ PUBLIC
 │
 ├── Login
 └── Sign Up
-
 
 MERCHANT APPLICATION
 │
@@ -1129,46 +1128,46 @@ The UI redesign is complete when:
 
 ### Public experience
 
-- [ ] Landing page immediately explains Repechage.
-- [ ] Repechage branding is visually distinctive.
-- [ ] Login/Signup is accessible from the header.
-- [ ] Static product/dashboard preview is visible.
-- [ ] Recovery flow is understandable at a glance.
-- [ ] GitHub is accessible.
-- [ ] Developer/resource entry points are visible.
-- [ ] Page works without unnecessary animation.
+- Landing page immediately explains Repechage.
+- Repechage branding is visually distinctive.
+- Login/Signup is accessible from the header.
+- Static product/dashboard preview is visible.
+- Recovery flow is understandable at a glance.
+- GitHub is accessible.
+- Developer/resource entry points are visible.
+- Page works without unnecessary animation.
 
 ### Merchant experience
 
-- [ ] Merchant can reach Overview after login.
-- [ ] Existing Agent Decisions remain functional.
-- [ ] Existing merchant approval/escalation workflow remains functional.
-- [ ] System Status is visible in the right-side rail.
-- [ ] Analytics displays real data.
-- [ ] Audit Trail displays real events.
-- [ ] Developers page is usable.
-- [ ] Resources/Data & Security is accessible.
-- [ ] Settings remains accessible.
+- Merchant can reach Overview after login.
+- Existing Agent Decisions remain functional.
+- Existing merchant approval/escalation workflow remains functional.
+- System Status is visible in the right-side rail.
+- Analytics displays real data.
+- Audit Trail displays real events.
+- Developers page is usable.
+- Resources/Data & Security is accessible.
+- Settings remains accessible.
 
 ### Visual quality
 
-- [ ] White/light background dominates.
-- [ ] Ocean blue is the primary accent.
-- [ ] No dark-blue AI theme.
-- [ ] No excessive rounded cards.
-- [ ] No unnecessary gradients.
-- [ ] No excessive animation.
-- [ ] Typography has a clear hierarchy.
-- [ ] Cards use restrained borders and radius.
-- [ ] Dashboard feels like fintech infrastructure.
-- [ ] Layout is responsive.
+- White/light background dominates.
+- Ocean blue is the primary accent.
+- No dark-blue AI theme.
+- No excessive rounded cards.
+- No unnecessary gradients.
+- No excessive animation.
+- Typography has a clear hierarchy.
+- Cards use restrained borders and radius.
+- Dashboard feels like fintech infrastructure.
+- Layout is responsive.
 
 ### Technical quality
 
-- [ ] Existing backend behavior is preserved.
-- [ ] Existing authentication remains functional.
-- [ ] No fake data has been introduced into production-facing metrics.
-- [ ] No unnecessary architecture changes were made.
-- [ ] Desktop demo flow works reliably.
-- [ ] Build passes successfully.
-- [ ] README and pitch can be completed after UI freeze.
+- Existing backend behavior is preserved.
+- Existing authentication remains functional.
+- No fake data has been introduced into production-facing metrics.
+- No unnecessary architecture changes were made.
+- Desktop demo flow works reliably.
+- Build passes successfully.
+- README and pitch can be completed after UI freeze.
