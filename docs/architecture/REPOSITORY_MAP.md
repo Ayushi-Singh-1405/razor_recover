@@ -38,7 +38,6 @@ razor_recover/
 |   |-- demo_scenarios.py           6 execution-demo Test Mode orders
 |   |-- demo_scenarios_extra.py     3 escalation-practice orders
 |   |-- alembic/                    migrations 001-006
-|   |-- reports/                    evaluation reports (.txt raw + .md readable)
 |   |-- requirements.txt            pinned runtime dependencies
 |
 |-- frontend/
@@ -61,6 +60,19 @@ razor_recover/
 |
 |-- tests/
 |   |-- run_all.sh                 single entry point for all suites
+|
+|-- reports/                       evaluation reports (.txt raw + .md readable)
+|   |-- baseline.md / baseline.txt                  detector evaluation
+|   |-- baseline_simulation.md / baseline_simulation.txt   benchmark simulation
+|   |-- agent_performance_result.md / agent_performance_result.txt   Gate B result
+|   |-- nemotron_15_event_sample.md / nemotron_15_event_sample.txt   pinned-model sample
+|
+|-- evaluation/
+|   |-- METRICS.md                 consolidated metrics with provenance labels
+|   |-- FAILURE_ANALYSIS.md        per-layer failure record
+|   |-- data/                      CSV snapshots of the benchmark tables
+|
+|-- pitch/                         pitch and demo deck PDFs
 |   |-- test_phase0.py             live-API smoke tests (server required)
 |   |-- test_run_agent_durability.py  mock-based persistence tests
 |   |-- dashboard_summary_check.py    summary vs source reports
@@ -101,5 +113,8 @@ razor_recover/
 | What do the tables look like? | `docs/architecture/DATABASE.md` |
 | What are the policy rules? | `backend/EXECUTION_POLICY.md`, `backend/GROUND_TRUTH_POLICY.md` |
 | Why these technologies? | `docs/engineering-decisions/ENGINEERING_DECISIONS.md` |
-| What are the benchmark numbers? | `backend/reports/agent_performance_result.md` |
+| What are the benchmark numbers? | `reports/agent_performance_result.md` |
+| Where are the consolidated metrics? | `evaluation/METRICS.md` |
+| What broke during the build? | `evaluation/FAILURE_ANALYSIS.md` |
+| Where is the dataset snapshot? | `evaluation/data/` |
 | What broke during the build? | `LEARNING_LOG.md` |

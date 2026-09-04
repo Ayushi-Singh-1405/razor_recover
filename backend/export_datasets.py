@@ -23,7 +23,7 @@ from sqlalchemy import create_engine, text
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import DATABASE_URL  # noqa: E402
 
-OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "reports", "data")
+OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "evaluation", "data")
 
 TABLES = {
     "synthetic_events.csv": """

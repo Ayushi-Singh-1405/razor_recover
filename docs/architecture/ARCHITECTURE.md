@@ -131,7 +131,7 @@ The LLM recommends; the policy decides; execution is controlled.
 
 The agent and the deterministic benchmark ran over the same 662 at-risk
 events under identical fixed economics. Full report:
-[../../backend/reports/agent_performance_result.md](../../backend/reports/agent_performance_result.md).
+[../../reports/agent_performance_result.md](../../reports/agent_performance_result.md).
 
 The honest outcome: the agent is more precise per attempt (73% vs 66%,
 110 vs 224 bad interventions) but more conservative — net Rs 25.5L vs the

@@ -36,8 +36,9 @@ reasoning is evaluated, not yet execution-authorized.
 Every decision, gate override, escalation, and webhook-confirmed recovery is
 auditable — that trail, not a perfect number, is the product.
 
-Full breakdown: [agent_performance_result.md](backend/reports/agent_performance_result.md) ·
-live charts: `/analytics` · audit trail: `/audit`
+Full breakdown: [agent_performance_result.md](reports/agent_performance_result.md) ·
+live charts: `/analytics` · audit trail: `/audit` · metrics: [evaluation/METRICS.md](evaluation/METRICS.md) ·
+failure record: [evaluation/FAILURE_ANALYSIS.md](evaluation/FAILURE_ANALYSIS.md)
 
 ## Track 03 — AI Revenue Recovery
 

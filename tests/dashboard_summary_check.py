@@ -18,10 +18,11 @@ from main import dashboard_summary
 from models import AuditLog, Merchant
 
 BACKEND = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend")
+REPORTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "reports")
 
 
 def read(name):
-    with open(os.path.join(BACKEND, "reports", name)) as f:
+    with open(os.path.join(REPORTS, name)) as f:
         return f.read()
 
 
