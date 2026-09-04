@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **Revoco** (formerly RecoverAI) will be documented in this file.
+All notable changes to **Repechage** (formerly RecoverAI) will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
@@ -11,7 +11,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - Google OAuth login with HS256 JWT sessions (httpOnly `recoverai_session` cookie, 24h expiry); `merchants` table (migration 006)
 - `get_current_merchant` dependency; `/auth/me` and `/auth/logout` endpoints
-- Public Revoco landing page at `/` (product overview, static pipeline diagram and dashboard preview)
+- Public Repechage landing page at `/` (product overview, static pipeline diagram and dashboard preview)
 - Analytics page: stat tiles, hand-rolled SVG charts (recovery trend, failure reasons, outcome donut, agent-vs-benchmark comparison, amount exposure by decision), detailed evaluation table with verdict
 - Audit page: filterable chronological audit trail across all demo transactions
 - Developers page (API reference, decision schema, policy gates) and Security page (auth model, execution safety, evaluation integrity)
@@ -20,7 +20,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - Dashboard slimmed to markup + page module; logic moved to shared JS modules
-- Branding unified to lowercase `revoco`; UI typography moved to Inter / Inter Tight (Google Fonts, system fallbacks)
+- Branding unified to lowercase `repechage`; UI typography moved to Inter / Inter Tight (Google Fonts, system fallbacks)
 - `/` now serves the public landing page (previously redirected to `/login`)
 - `FAILURE_LOG.md` renamed to `LEARNING_LOG.md`
 - `/dashboard/summary` transaction entries now include `failure_reason` (additive)
