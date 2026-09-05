@@ -1,5 +1,9 @@
 # Repechage
 
+**[Watch the demo video](https://drive.google.com/file/d/1_1xO3bzsS_PpmYbi99pvog5_Im1Tu5RG/view?usp=drivesdk)** ·
+**[Live app on Render](https://repechage.onrender.com)** ·
+**[Pitch deck](pitch/pitch_deck_presentation.pdf)**
+
 Agentic payment recovery for failed Razorpay checkouts.
 
 Repechage detects at-risk payments, reasons about why they failed, and recovers
