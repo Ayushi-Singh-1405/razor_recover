@@ -45,6 +45,15 @@ EXTRA_SCENARIOS = [
         "expected_reason": "low_recoverability",
     },
     {
+        "name": "amount_above_cap_4",
+        "amount_paise": 575000,
+        "status": "failed",
+        "failure_reason": "network_error",
+        "previous_recovery_attempts": 0,
+        "expected": "ESCALATE",
+        "expected_reason": "amount_above_cap",
+    },
+    {
         "name": "amount_above_cap_3",
         "amount_paise": 899900,
         "status": "abandoned_checkout",
@@ -57,6 +66,21 @@ EXTRA_SCENARIOS = [
 
 
 def main() -> int:
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Create escalation-demo Test Mode orders.")
+    parser.add_argument("--only", metavar="NAME", default=None,
+                        help="Create only the named scenario (e.g. amount_above_cap_4).")
+    args = parser.parse_args()
+
+    scenarios = EXTRA_SCENARIOS
+    if args.only:
+        scenarios = [s for s in EXTRA_SCENARIOS if s["name"] == args.only]
+        if not scenarios:
+            print(f"Unknown scenario: {args.only}")
+            print("Available:", ", ".join(s["name"] for s in EXTRA_SCENARIOS))
+            return 2
+
     print("=" * 70)
     print("  Escalation Demo Orders — 3 additional Razorpay Test Mode orders")
     print("=" * 70)
@@ -65,7 +89,7 @@ def main() -> int:
     results = []
     created_ids = []
 
-    for idx, scenario in enumerate(EXTRA_SCENARIOS, start=1):
+    for idx, scenario in enumerate(scenarios, start=1):
         print(f"--- {idx}. {scenario['name']} ---")
 
         # Real Test Mode order via the existing endpoint logic

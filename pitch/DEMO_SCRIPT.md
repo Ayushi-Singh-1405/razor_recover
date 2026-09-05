@@ -10,10 +10,11 @@ Every number and row name below is real and currently in the system. Read the
    live Approve beat).
 2. Open the dashboard once before recording and expand one row — this warms
    the Neon connection and the 30s summary cache.
-3. Decide the Approve beat: all current escalations are already resolved
-   (approved and paid). For a fresh on-camera Approve, add one more
-   over-cap order first: `cd backend && ../venv/bin/python demo_scenarios_extra.py`
-   after adding a scenario to its list, or re-use the audit trail of
+3. Decide the Approve beat: a fresh escalation (`amount_above_cap_4`,
+   Rs 5,750) is already created and waiting. For another on-camera Approve,
+   generate one more with:
+   `cd backend && ../venv/bin/python demo_scenarios_extra.py --only amount_above_cap_4`
+   (bump the number for a new one). Alternatively re-use the audit trail of
    `amount_above_cap` and narrate the approval from its chain instead.
 4. Browser: signed in, on `http://localhost:8000/dashboard`, zoom ~110%.
 5. Terminal visible in a second window (for the STOP beat, showing that no
