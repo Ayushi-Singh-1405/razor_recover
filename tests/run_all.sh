@@ -35,7 +35,12 @@ echo "=============================================="
 echo " 2/3  Dashboard summary vs source reports"
 echo "      (needs Neon reachable — no server)"
 echo "=============================================="
-"$PY" tests/dashboard_summary_check.py || fail=1
+if [ -n "${DATABASE_URL:-}" ] || grep -q "^DATABASE_URL=" .env 2>/dev/null; then
+  "$PY" tests/dashboard_summary_check.py || fail=1
+else
+  echo "SKIP — DATABASE_URL not configured (add it as a repo secret on CI,"
+  echo "       or keep DATABASE_URL in .env locally)."
+fi
 
 echo ""
 echo "=============================================="
