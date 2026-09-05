@@ -56,48 +56,17 @@ appropriate intervention, executes a bounded recovery workflow, measures the
 money recovered — with compliant escalation, stopping rules, and a full
 audit trail.
 
-**What Revoco delivers against it:**
+**What Repechage delivers against it:**
 
-- Measured money recovered — ₹13,497 of real Test Mode revenue recovered
-  through webhook-confirmed payment links, across a 662-event benchmark run
+- Measured money recovered — **₹13,497 of real Razorpay Test Mode revenue**,
+  recovered through webhook-confirmed payment links during live execution
+  (real money flow — separate from the simulated benchmark results below)
 - Compliant escalation — over-cap and low-recoverability cases go to the
   merchant with one-click Approve/Dismiss, fully audited
 - Stopping rules — attempt caps, already-recovered checks, and volume caps
   enforced by a deterministic gate the LLM cannot override
 - Audit trail — every decision, gate override, and recovery recorded and
   viewable on the Audit page
-
-## Results — 662-event benchmark (simulated)
-
-We ran the full recovery agent and the deterministic benchmark over the same
-662 at-risk events under identical §20.7/§20.8 economics — and report the
-outcome honestly, including where the agent loses:
-
-| System | Candidates | Recoveries | ₹ Recovered | Bad interventions | Net ₹ |
-|---|---:|---:|---:|---:|---:|
-| Deterministic benchmark | 662 | 438 | ₹42.9L | 224 | **₹42.4L** |
-| AI recovery agent | 408 | 298 | ₹25.8L | 110 | **₹25.5L** |
-
-```
-Net ₹ recovered — 662 at-risk events, identical simulation economics:
-
-Deterministic benchmark  ████████████████████████████████████  ₹4,244,118
-AI recovery agent        ██████████████████████                ₹2,554,773
-```
-
-**The honest read:** the agent is more precise per attempt — 73% targeting
-precision vs 66%, with 110 bad interventions vs 224 — but far more
-conservative. It attempted recovery on only 408 of 662 events, leaving
-~₹16.9L of recoverable revenue untouched. Under the current economics the
-**deterministic benchmark is retained for real execution**; the agent's
-reasoning is evaluated, not yet execution-authorized.
-
-Every decision, gate override, escalation, and webhook-confirmed recovery is
-auditable — that trail, not a perfect number, is the product.
-
-Full breakdown: [reports/agent_performance_result.md](reports/agent_performance_result.md) ·
-live charts: `/analytics` · audit trail: `/audit` · metrics: [reports/METRICS.md](reports/METRICS.md) ·
-failure record: [reports/FAILURE_ANALYSIS.md](reports/FAILURE_ANALYSIS.md)
 
 ## How it works
 
@@ -169,9 +138,10 @@ backend/
   evaluate.py / simulate_outcomes.py / execute_recovery.py
   GROUND_TRUTH_POLICY.md / EXECUTION_POLICY.md
   alembic/           migrations 001-006
-  reports/           evaluation reports
+reports/             evaluation reports (.txt raw + .md readable)
+evaluation/          metrics, failure analysis, dataset CSV snapshots
 tests/               smoke, durability, summary-verification suites
-docs/                architecture, specs, workflow plans
+docs/                architecture, specifications, workflow, build-plan, design
 ```
 
 ## Run locally
