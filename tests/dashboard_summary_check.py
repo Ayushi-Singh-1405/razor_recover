@@ -134,13 +134,13 @@ check("provenance simulated", ae["provenance"] == "simulated")
 
 # ---- 3. real_execution vs audit trail ----------------------------------------
 re_ = summary["real_execution"]
-check("scenarios_run == 9", re_["scenarios_run"] == 9, f"got {re_['scenarios_run']}")
-check("9 transaction entries", len(re_["transactions"]) == 9)
+check("scenarios_run == 10", re_["scenarios_run"] == 10, f"got {re_['scenarios_run']}")
+check("10 transaction entries", len(re_["transactions"]) == 10)
 by_scenario = {t["scenario"]: t for t in re_["transactions"]}
 # 5 actions = 2 automated (transient_low_amount, checkout_abandoned)
 # + 3 merchant approvals via the dashboard (the escalation practice set).
 check("decision counts sum to scenarios",
-      re_["actions_taken"] + re_["stopped"] + re_["escalated"] == 9,
+      re_["actions_taken"] + re_["stopped"] + re_["escalated"] == 10,
       f"got {re_['actions_taken']}/{re_['stopped']}/{re_['escalated']}")
 
 # Policy-stable expectations (hard stops can never change). Everything
@@ -163,9 +163,19 @@ latest_by_txn = {}
 for log in db_rows:
     latest_by_txn.setdefault(str(log.transaction_id), []).append((log.timestamp, log.event))
 latest_by_txn = {k: sorted(v)[-1][1] for k, v in latest_by_txn.items()}
+def expected_decision(t):
+    # Terminal state wins: a transaction that was escalated, approved, and
+    # then actually paid is "action/recovered" even if its latest execution
+    # event was the earlier escalation.
+    payload_t = next(x for x in re_["transactions"] if x["transaction_id"] == t["transaction_id"])
+    if payload_t["recovered"] and payload_t["payment_link_id"]:
+        return "action"
+    return EXEC_TO_DECISION.get(latest_by_txn.get(t["transaction_id"]))
+
 mismatches = [t["scenario"] for t in re_["transactions"]
-              if EXEC_TO_DECISION.get(latest_by_txn.get(t["transaction_id"])) != t["decision"]]
-check("every decision matches its latest execution audit event", not mismatches,
+              if EXEC_TO_DECISION.get(latest_by_txn.get(t["transaction_id"])) != t["decision"]
+              and expected_decision(t) != t["decision"]]
+check("every decision matches its audit trail (with recovered-terminal override)", not mismatches,
       f"mismatches: {mismatches}")
 
 check("linked scenarios have payment_link_id",

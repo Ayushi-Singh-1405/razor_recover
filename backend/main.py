@@ -197,6 +197,11 @@ def dashboard_summary(
         if decision is None:
             reason = "no_execution_event"
             decision = "none"
+        elif txn.status == "recovered" and txn.razorpay_payment_link_id:
+            # Terminal state wins over a stale escalation label: the
+            # transaction was escalated, approved, and then actually paid.
+            decision = "action"
+            reason = "recovered via webhook after merchant approval"
         elif latest.event == "execution_action_taken":
             reason = "tier_high_within_limits"
         elif latest.event == "execution_action_failed":
